@@ -376,6 +376,18 @@ function updateShiftButtons() {
 // Initialize Dashboard
 document.addEventListener('DOMContentLoaded', () => {
   loadStateFromLocalStorage();
+
+  // Check for auto-submit if shift was left active from a previous day
+  if (state.shiftActive) {
+    const activeOrder = state.orders.find(o => o.active);
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (activeOrder && activeOrder.date && activeOrder.date !== todayStr) {
+      console.warn("⚠️ Previous shift active: auto-submitting...");
+      addLog('System', 'Active shift left running from previous day (' + activeOrder.date + '). Auto-submitting report.', 'warning');
+      doneShiftEnd();
+    }
+  }
+
   addLog('System', 'IRIS Ripple IoT Master online.', 'info');
   updateClock();
   setInterval(updateClock, 1000);
@@ -1685,20 +1697,31 @@ function doneShiftEnd() {
 
   const availability = totalMachines > 0 ? (runningMachines / (totalMachines - alarmCount)) * 100 : 0;
 
-  inputs.forEach(input => {
-    const stationId = input.getAttribute('data-station-id');
-    const rejectionQty = parseInt(input.value) || 0;
-    const { station } = findStationGlobal(stationId);
-    if (station) {
-      station.rejectionQty = rejectionQty;
-      totalRejections += rejectionQty;
-      totalOutput += Math.floor(station.actual);
-      
-      // Stop the station
-      station.status = 'Idle';
-      station.speed = 0;
-    }
-  });
+  if (inputs.length === 0) {
+    state.slaves.forEach(slave => {
+      slave.stations.forEach(station => {
+        station.rejectionQty = 0;
+        totalOutput += Math.floor(station.actual);
+        station.status = 'Idle';
+        station.speed = 0;
+      });
+    });
+  } else {
+    inputs.forEach(input => {
+      const stationId = input.getAttribute('data-station-id');
+      const rejectionQty = parseInt(input.value) || 0;
+      const { station } = findStationGlobal(stationId);
+      if (station) {
+        station.rejectionQty = rejectionQty;
+        totalRejections += rejectionQty;
+        totalOutput += Math.floor(station.actual);
+        
+        // Stop the station
+        station.status = 'Idle';
+        station.speed = 0;
+      }
+    });
+  }
 
   // End active shift
   state.shiftActive = false;
