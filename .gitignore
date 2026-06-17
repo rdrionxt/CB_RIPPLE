@@ -1,0 +1,19 @@
+# Ignore build outputs
+**/build/
+build/
+
+# Ignore backups (version control is your backup)
+*backup*/
+
+# Ignore workspace/IDE settings
+.theia/
+.vscode/
+
+# Ignore media files & archives
+*.zip
+*.rar
+*.jpeg
+*.jpg
+*.png
+*.webp
+desktop.ini

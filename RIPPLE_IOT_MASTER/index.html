@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Ripple IoT Master Dashboard</title>
+  <meta name="description" content="Industrial IoT dashboard for monitoring real-time telemetry, machine status, and breakdown logs across multiple Slave nodes.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Dashboard Top Header -->
+  <header>
+    <div class="brand-container">
+      <!-- Custom SVG Vector Logo matching the IRIS butterfly -->
+      <svg class="brand-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 50,48 
+                 C 43,26 15,22 15,44 
+                 C 15,55 42,56 46,50 
+                 C 44,57 32,64 32,72 
+                 C 32,80 47,80 49,62 
+                 C 51,80 66,80 66,72 
+                 C 66,64 54,57 52,50 
+                 C 56,56 83,55 83,44 
+                 C 83,22 55,26 50,48 Z" />
+      </svg>
+      <div class="brand-text">
+        <h1>IRIS</h1>
+        <span>Tea light line</span>
+      </div>
+    </div>
+
+    <!-- Shift and Alert Control Buttons -->
+    <div class="header-controls" style="display: flex; gap: 12px; align-items: center; margin-right: auto; margin-left: 40px;">
+      <button class="control-btn" id="btn-shift-start" style="padding: 10px 18px; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--status-running); background: rgba(16, 185, 129, 0.1); color: var(--status-running); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth); text-transform: uppercase; font-size: 0.75rem;">
+        <span>▶</span> Shift Start
+      </button>
+      <button class="control-btn" id="btn-shift-end" style="padding: 10px 18px; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--status-breakdown); background: rgba(239, 68, 68, 0.1); color: var(--status-breakdown); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth); text-transform: uppercase; font-size: 0.75rem;" disabled>
+        <span>■</span> Shift End
+      </button>
+      <button class="control-btn" id="btn-bd-reason" style="padding: 10px 18px; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--status-idle); background: rgba(245, 158, 11, 0.1); color: var(--status-idle); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth); text-transform: uppercase; font-size: 0.75rem;">
+        <span>⚠️</span> BD Reason
+      </button>
+      <button class="control-btn" id="btn-bd-log" style="padding: 10px 18px; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--accent-peach); background: rgba(244, 63, 94, 0.1); color: var(--accent-peach); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth); text-transform: uppercase; font-size: 0.75rem;">
+        <span>📋</span> BD Log
+      </button>
+    </div>
+
+    <!-- Global KPI Panels -->
+    <div class="global-stats">
+      <!-- Live Clock -->
+      <div class="stat-item" style="border-right: 1px solid var(--border-color); padding-right: 20px; align-items: flex-start; justify-content: center;">
+        <span class="stat-label" id="live-date">Loading...</span>
+        <span class="stat-value highlight" id="live-time" style="font-size: 1.3rem; letter-spacing: 0.5px;">00:00:00</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Overall OEE</span>
+        <span class="stat-value highlight" id="global-oee">94.2%</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Active Slaves</span>
+        <span class="stat-value" id="global-active-slaves">4/4</span>
+      </div>
+      <div class="stat-item" style="align-items: flex-end;">
+        <span class="stat-label">Total Output / Target</span>
+        <div style="display: flex; align-items: baseline; gap: 4px;">
+          <span class="stat-value" id="global-total-output">0</span>
+          <span style="color: var(--text-muted); font-size: 0.9rem; font-family: var(--font-mono);">/</span>
+          <span class="stat-value" id="global-order-target" style="color: var(--accent-peach); font-size: 1.25rem;">80,000</span>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Active Alarms</span>
+        <span class="stat-value" style="color: var(--status-breakdown);" id="global-alarms">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Secondary Metadata Strip -->
+  <div class="meta-strip" style="background: rgba(26, 22, 20, 0.95); border-bottom: 1px solid var(--border-color); padding: 8px 2rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 90; position: sticky; top: 80px;">
+    <div>
+      <span style="color: var(--accent-peach); font-weight: 600; font-family: var(--font-sans); letter-spacing: 0.5px;">ACTIVE ITEM:</span>
+      <span id="active-item-name" style="color: var(--text-white); font-weight: 500; margin-left: 6px; cursor: pointer; text-decoration: underline dashed rgba(245, 214, 198, 0.3); text-underline-offset: 3px;" title="Click to change active item" onclick="changeActiveItem()">IRIS Reed Diffuser - Lavender Mist</span>
+    </div>
+    <div id="active-order-strip" style="display: flex; gap: 15px;">
+      <!-- Active Order details populated dynamically -->
+      <span><strong style="color: var(--accent-peach);">ACTIVE ORDER:</strong> Loading...</span>
+    </div>
+  </div>
+
+  <!-- Sidebar & Main Content Wrapper -->
+  <div class="dashboard-container">
+    
+    <!-- Sidebar for Slave Gateways -->
+    <aside class="sidebar">
+      <h3 class="sidebar-title">Slave Node Directory</h3>
+      <ul class="slave-nav-list" id="slave-list">
+        <!-- Rendered dynamically by app.js -->
+      </ul>
+
+    </aside>
+
+    <!-- Main Live Workspace -->
+    <main class="dashboard-view">
+      
+      <!-- Selected Slave Details & Status Switch -->
+      <div class="view-header">
+        <div class="active-slave-title">
+          <h2 id="active-slave-name">Pressing & Cupping Monitoring</h2>
+          <p id="active-slave-meta">ID: SL-001 | MAC: 00:E0:4C:53:11:A2</p>
+        </div>
+
+        <!-- Connection Control for Selected Slave -->
+        <div class="toggle-container">
+          <span class="toggle-label" id="slave-connection-label">Gateway Status: Online</span>
+          <label class="switch">
+            <input type="checkbox" id="slave-connection-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Machine Stations Grid -->
+      <div class="machine-grid" id="machine-grid">
+        <!-- Station Cards will be loaded dynamically by app.js -->
+      </div>
+
+  <!-- Tea Light Line Process Flow Animation -->
+  <div class="process-flow-container">
+    <h3 class="process-flow-title">Tea light line</h3>
+    <div class="process-flow-track">
+      
+      <!-- Station 1: Pressing -->
+      <div class="flow-node" id="flow-node-pressing">
+        <div class="machine-svg-wrapper">
+          <svg class="flow-machine-svg" viewBox="0 0 100 100">
+            <!-- Base -->
+            <rect x="15" y="75" width="70" height="8" rx="2" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+            <!-- Support Pillars -->
+            <rect x="22" y="25" width="6" height="50" fill="#64748b"/>
+            <rect x="72" y="25" width="6" height="50" fill="#64748b"/>
+            <!-- Top Cylinder Housing -->
+            <rect x="20" y="15" width="60" height="12" rx="2" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+            <!-- Main hydraulic cylinder barrel -->
+            <rect x="44" y="20" width="12" height="25" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+            <!-- Moving Press Head -->
+            <g class="animated-press-head">
+              <!-- Piston shaft -->
+              <rect x="48" y="45" width="4" height="20" fill="#cbd5e1"/>
+              <!-- Press head die -->
+              <rect x="36" y="60" width="28" height="6" rx="1" fill="#38bdf8" stroke="#0284c7" stroke-width="1"/>
+              <!-- Workpiece / Cup being pressed -->
+              <rect x="42" y="68" width="16" height="7" rx="1" fill="#a7f3d0" stroke="#34d399" stroke-width="1"/>
+            </g>
+          </svg>
+        </div>
+        <div class="flow-label">
+          <h4>PRESSING</h4>
+        </div>
+      </div>
+      
+      <!-- Connector 1 -->
+      <div class="flow-connector">
+        <svg viewBox="0 0 100 20" class="flow-arrow-svg">
+          <path d="M 10 10 L 90 10" stroke="rgba(245, 214, 198, 0.2)" stroke-width="3" stroke-dasharray="6 4" class="flowing-dots"/>
+          <polygon points="90,5 98,10 90,15" fill="var(--accent-peach)"/>
+        </svg>
+      </div>
+
+      <!-- Station 2: Capping (Cupping) -->
+      <div class="flow-node" id="flow-node-capping">
+        <div class="machine-svg-wrapper">
+          <svg class="flow-machine-svg" viewBox="0 0 100 100">
+            <!-- Conveyor/Base -->
+            <rect x="10" y="75" width="80" height="8" rx="2" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+            <!-- Pillars -->
+            <rect x="16" y="20" width="5" height="55" fill="#64748b"/>
+            <rect x="79" y="20" width="5" height="55" fill="#64748b"/>
+            <!-- Top Cabinet -->
+            <rect x="12" y="10" width="76" height="12" rx="2" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+            <!-- Capping head structures -->
+            <g class="animated-capper">
+              <!-- Capping Shafts -->
+              <rect x="28" y="22" width="4" height="25" fill="#cbd5e1"/>
+              <rect x="48" y="22" width="4" height="25" fill="#cbd5e1"/>
+              <rect x="68" y="22" width="4" height="25" fill="#cbd5e1"/>
+              <!-- Capping Chucks -->
+              <rect x="24" y="47" width="12" height="6" rx="1" fill="#f472b6" stroke="#db2777" stroke-width="1"/>
+              <rect x="44" y="47" width="12" height="6" rx="1" fill="#f472b6" stroke="#db2777" stroke-width="1"/>
+              <rect x="64" y="47" width="12" height="6" rx="1" fill="#f472b6" stroke="#db2777" stroke-width="1"/>
+              <!-- Cups underneath -->
+              <rect x="25" y="65" width="10" height="10" rx="1" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
+              <rect x="45" y="65" width="10" height="10" rx="1" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
+              <rect x="65" y="65" width="10" height="10" rx="1" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
+            </g>
+          </svg>
+        </div>
+        <div class="flow-label">
+          <h4>CAPPING STATION</h4>
+        </div>
+      </div>
+      
+      <!-- Connector 2 -->
+      <div class="flow-connector">
+        <svg viewBox="0 0 100 20" class="flow-arrow-svg">
+          <path d="M 10 10 L 90 10" stroke="rgba(245, 214, 198, 0.2)" stroke-width="3" stroke-dasharray="6 4" class="flowing-dots"/>
+          <polygon points="90,5 98,10 90,15" fill="var(--accent-peach)"/>
+        </svg>
+      </div>
+
+      <!-- Station 3: Pouch Packing -->
+      <div class="flow-node" id="flow-node-pouching">
+        <div class="machine-svg-wrapper">
+          <svg class="flow-machine-svg" viewBox="0 0 100 100">
+            <!-- Main Cabinet -->
+            <rect x="20" y="15" width="60" height="70" rx="4" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+            <!-- Top Hopper/Forming Tube -->
+            <path d="M 40,5 L 60,5 L 54,15 L 46,15 Z" fill="#64748b" stroke="#94a3b8" stroke-width="1"/>
+            <rect x="46" y="15" width="8" height="15" fill="#475569"/>
+            <!-- Control Panel / Glass Window -->
+            <rect x="28" y="32" width="44" height="24" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+            <circle cx="35" cy="40" r="2" fill="#ef4444"/>
+            <circle cx="41" cy="40" r="2" fill="#10b981"/>
+            <rect x="48" y="36" width="20" height="16" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="0.5"/>
+            <!-- Heat Sealer Jaw (horizontal bars closing) -->
+            <g class="animated-sealer">
+              <line x1="24" y1="64" x2="44" y2="64" stroke="#f59e0b" stroke-width="3"/>
+              <line x1="76" y1="64" x2="56" y2="64" stroke="#f59e0b" stroke-width="3"/>
+            </g>
+            <!-- Pouch dropping -->
+            <path d="M 42,70 L 58,70 L 54,83 L 46,83 Z" fill="#fb7185" stroke="#f43f5e" stroke-width="1" class="animated-pouch"/>
+          </svg>
+        </div>
+        <div class="flow-label">
+          <h4>POUCH PACKING</h4>
+        </div>
+      </div>
+      
+      <!-- Connector 3 -->
+      <div class="flow-connector">
+        <svg viewBox="0 0 100 20" class="flow-arrow-svg">
+          <path d="M 10 10 L 90 10" stroke="rgba(245, 214, 198, 0.2)" stroke-width="3" stroke-dasharray="6 4" class="flowing-dots"/>
+          <polygon points="90,5 98,10 90,15" fill="var(--accent-peach)"/>
+        </svg>
+      </div>
+
+      <!-- Station 4: Labeling & Box Packing -->
+      <div class="flow-node" id="flow-node-labeling">
+        <div class="machine-svg-wrapper">
+          <svg class="flow-machine-svg" viewBox="0 0 100 100">
+            <!-- Conveyor belt support legs -->
+            <line x1="20" y1="70" x2="20" y2="85" stroke="#475569" stroke-width="3"/>
+            <line x1="80" y1="70" x2="80" y2="85" stroke="#475569" stroke-width="3"/>
+            <!-- Conveyor track -->
+            <rect x="5" y="65" width="90" height="7" rx="2" fill="#334155" stroke="#64748b" stroke-width="1"/>
+            <circle cx="15" cy="68.5" r="2.5" fill="#1e293b"/>
+            <circle cx="38" cy="68.5" r="2.5" fill="#1e293b"/>
+            <circle cx="62" cy="68.5" r="2.5" fill="#1e293b"/>
+            <circle cx="85" cy="68.5" r="2.5" fill="#1e293b"/>
+            <!-- Labeling head assembly (top dispenser) -->
+            <rect x="42" y="10" width="16" height="22" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+            <!-- Label roll -->
+            <circle cx="50" cy="21" r="7" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>
+            <line x1="50" y1="21" x2="55" y2="35" stroke="#cbd5e1" stroke-width="2"/>
+            <!-- Moving box on conveyor -->
+            <g class="animated-box">
+              <rect x="35" y="45" width="30" height="20" fill="#d97706" stroke="#b45309" stroke-width="1" rx="1"/>
+              <!-- Tape on box -->
+              <rect x="48" y="45" width="4" height="20" fill="#b45309"/>
+              <!-- Applied Label -->
+              <rect x="39" y="52" width="7" height="6" fill="#fef08a"/>
+            </g>
+            <!-- Labeler nozzle arm -->
+            <g class="animated-labeler-arm">
+              <line x1="50" y1="32" x2="50" y2="45" stroke="#a8a29e" stroke-width="3"/>
+              <rect x="46" y="43" width="8" height="3" fill="#ef4444"/>
+            </g>
+          </svg>
+        </div>
+        <div class="flow-label">
+          <h4>LABELING &</h4>
+          <h4>BOX PACKING</h4>
+        </div>
+      </div>
+
+    </div>
+  </div>
+    </main>
+  </div>
+
+  <!-- Breakdown Reason Dialog Modal (Optional overlay for adding custom breakdown descriptions) -->
+  <div class="modal-overlay" id="breakdown-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Log Station Breakdown</h3>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;" id="modal-station-desc">
+          Station is marked as Major Breakdown. Select a breakdown category and report details.
+        </p>
+        <div class="form-group">
+          <label for="modal-reason-select">Primary Breakdown Reason</label>
+          <select class="breakdown-select" id="modal-reason-select" style="width: 100%; padding: 10px;">
+            <option value="Motor issue">Motor issue</option>
+            <option value="Conveyer issue">Conveyer issue</option>
+            <option value="Press mould issue">Press mould issue</option>
+            <option value="Press pin issue">Press pin issue</option>
+            <option value="Press brass issue">Press brass issue</option>
+            <option value="Sensor not working">Sensor not working</option>
+            <option value="V belt damage">V belt damage</option>
+            <option value="Compressor Air issue">Compressor Air issue</option>
+            <option value="Power issue">Power issue</option>
+            <option value="Label machine issue">Label machine issue</option>
+            <option value="Shrink tunnel issue">Shrink tunnel issue</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-notes">Operator Notes (Optional)</label>
+          <textarea id="modal-notes" rows="3" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-sans); outline: none; resize: none;" placeholder="Provide fault description..."></textarea>
+        </div>
+        <div class="btn-container">
+          <button class="btn-primary" id="modal-save-btn">Confirm Breakdown</button>
+          <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shift Start Modal -->
+  <div class="modal-overlay" id="shift-start-modal">
+    <div class="modal-content" style="max-width: 550px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title">Start New Shift</h3>
+        <button class="modal-close" id="shift-start-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px;">
+        <!-- Global Shift Configuration Form -->
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Cup Size (Height)</label>
+            <select id="shift-cup-size" style="padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); outline: none;">
+              <option value="9mm">9mm</option>
+              <option value="10mm">10mm</option>
+              <option value="11mm">11mm</option>
+              <option value="13mm">13mm</option>
+              <option value="14mm">14mm</option>
+            </select>
+          </div>
+          
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Qty per Pouch</label>
+            <select id="shift-pouch-qty" style="padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); outline: none;">
+              <option value="10">10</option>
+              <option value="24">24</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; grid-column: 1 / -1;">
+            <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Outer Box Cases</label>
+            <select id="shift-outer-box" style="padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); outline: none;">
+              <option value="10_12_48">Numbers: 10, Inner: 12, Outer: 48</option>
+              <option value="24_8_32">Numbers: 24, Inner: 8, Outer: 32</option>
+              <option value="30_Nill_30">Numbers: 30, Inner: Nill, Outer: 30</option>
+              <option value="50_Nill_20">Numbers: 50, Inner: Nill, Outer: 20</option>
+              <option value="50_8_16">Numbers: 50, Inner: 8, Outer: 16</option>
+              <option value="100_4_8">Numbers: 100, Inner: 4, Outer: 8</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-bottom: 15px; background: rgba(245, 214, 198, 0.04); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <input type="checkbox" id="skip-operators-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="skip-operators-checkbox" style="cursor: pointer; font-size: 0.85rem; font-weight: 500; text-transform: none; letter-spacing: 0;">Skip operator name updates (Keep current operator list)</label>
+        </div>
+        <div id="shift-start-stations-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+        <button class="btn-primary" id="shift-start-done-btn">Done & Start Shift</button>
+        <button class="btn-secondary" id="shift-start-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shift End Modal -->
+  <div class="modal-overlay" id="shift-end-modal">
+    <div class="modal-content" style="max-width: 550px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title">End Active Shift</h3>
+        <button class="modal-close" id="shift-end-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Input the recorded rejection quantity for each station to conclude the shift.</p>
+        <div id="shift-end-stations-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+        <button class="btn-primary" id="shift-end-done-btn">Done & End Shift</button>
+        <button class="btn-secondary" id="shift-end-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BD Reason Modal -->
+  <div class="modal-overlay" id="bd-reason-modal">
+    <div class="modal-content" style="max-width: 550px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title">Log Station BD / Idle Reasons</h3>
+        <button class="modal-close" id="bd-reason-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px;">
+        <div id="bd-reason-stations-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+        <button class="btn-primary" id="bd-reason-done-btn">Done & Save Reasons</button>
+        <button class="btn-secondary" id="bd-reason-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breakdown Log Modal -->
+  <div class="modal-overlay" id="breakdown-log-modal">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title">Live Breakdown Logs</h3>
+        <button class="modal-close" id="bd-log-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted);">
+              <th style="padding: 10px 8px;">Timestamp</th>
+              <th style="padding: 10px 8px;">Station</th>
+              <th style="padding: 10px 8px;">Reason</th>
+              <th style="padding: 10px 8px;">BD Mins</th>
+            </tr>
+          </thead>
+          <tbody id="breakdown-log-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+        <div id="breakdown-log-empty-msg" style="text-align: center; color: var(--text-muted); padding: 30px; font-style: italic;">
+          No breakdowns logged in this shift.
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px; display: flex; gap: 10px;">
+        <button class="btn-secondary" id="bd-log-clear-btn" style="background: rgba(239, 68, 68, 0.1); color: var(--status-breakdown); border: 1px solid var(--status-breakdown); padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer;">Clear Logs</button>
+        <button class="btn-primary" id="bd-log-done-btn" style="margin-left: auto; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Production Order Modal -->
+  <div class="modal-overlay" id="create-order-modal">
+    <div class="modal-content" style="max-width: 450px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="order-modal-title">Create Production Order</h3>
+        <button class="modal-close" id="create-order-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px;">
+        <div class="form-group">
+          <label for="order-number-input">Order Number</label>
+          <input type="text" id="order-number-input" placeholder="e.g., ORD-2026-001" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-sans); outline: none;">
+        </div>
+        <div class="form-group">
+          <label for="order-date-input">Order Date</label>
+          <input type="date" id="order-date-input" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-sans); outline: none;">
+        </div>
+        <div class="form-group">
+          <label for="order-shift-input">Shift Name</label>
+          <select id="order-shift-input" class="breakdown-select" style="width: 100%; padding: 10px;">
+            <option value="Shift A">Shift A (Morning)</option>
+            <option value="Shift B">Shift B (Afternoon)</option>
+            <option value="Shift C">Shift C (Night)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="order-target-input">Order Target Quantity</label>
+          <input type="number" id="order-target-input" value="80000" min="1000" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-mono); outline: none;">
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+        <button class="btn-primary" id="create-order-done-btn">Done & Create Order</button>
+        <button class="btn-secondary" id="create-order-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Suggestions Modal -->
+  <div class="modal-overlay" id="ai-suggestions-modal">
+    <div class="modal-content" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--accent-peach); font-size: 1.3rem;">✨</span> AI Production Insights & Recommendations
+        </h3>
+        <button class="modal-close" id="ai-suggestions-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px; display: flex; flex-direction: column; gap: 15px;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px;">
+          The system has analyzed this shift's performance metrics against historical baselines. Here are the customized suggestions to optimize OEE, minimize breakdowns, and improve quality:
+        </p>
+        <div id="ai-recommendations-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Suggestions cards will be generated dynamically here -->
+        </div>
+      </div>
+      <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+        <button class="btn-primary" id="ai-suggestions-ok-btn" style="width: 100%;">Got it, Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attractive Glassmorphic Sync Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner-container">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loading-text">Synchronizing Shift Data...</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js" type="text/javascript"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT HMI Dashboard - Ripple Fragrence</title>
+  <!-- Google Fonts: Outfit for sleek modern headers, JetBrains Mono for industrial numbers -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="hmi-container">
+    <!-- Header Block -->
+    <header class="hmi-header">
+      <div class="header-left">
+        <div class="company-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="logo-icon">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="company-brand">
+          <h1 id="company-name">Ripple Fragrence</h1>
+          <span class="brand-tag">INDUSTRIAL IOT NETWORKS</span>
+        </div>
+      </div>
+      
+      <div class="header-center">
+        <div class="machine-status-tag" id="header-status-badge">
+          <span class="status-pulse pulse-running"></span>
+          <span id="machine-name-display">RION-FRAG-3000 MULTI-FILL SYSTEM</span>
+        </div>
+      </div>
+
+      <div class="header-right font-mono">
+        <div class="header-datetime">
+          <div class="datetime-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dt-icon">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="live-date">05 JUN 2026</span>
+          </div>
+          <div class="datetime-separator">|</div>
+          <div class="datetime-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dt-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="live-time">04:21:05 PM</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- HMI Body -->
+    <main class="hmi-body">
+      <!-- Operator and Core Status Subheader -->
+      <section class="hmi-operator-bar">
+        <div class="operator-profile">
+          <div class="avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="operator-details">
+            <span class="label">ACTIVE OPERATOR</span>
+            <span class="value" id="operator-name-display">Naveen Kumar</span>
+          </div>
+        </div>
+
+        <div class="system-status-indicator">
+          <span class="status-indicator-label">MACHINE STATUS:</span>
+          <div class="status-pill status-running" id="machine-status-pill">
+            <span class="status-dot"></span>
+            <span class="status-text" id="machine-status-text">RUNNING</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Primary Telemetry Grid -->
+      <section class="hmi-grid">
+        <!-- Telemetry Cards Area -->
+        <div class="telemetry-cards">
+          <!-- Card: Current Count -->
+          <div class="t-card count-card">
+            <div class="card-edge-glow"></div>
+            <div class="card-header">
+              <span class="card-title">CURRENT COUNT</span>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20v-6M6 20V10M18 20V4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="value-container font-mono">
+                <span class="value-number" id="val-current-count">0</span>
+                <span class="value-unit">Units</span>
+              </div>
+              <div class="card-footer-info">
+                <span>Incrementing live...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Total Count -->
+          <div class="t-card total-card">
+            <div class="card-edge-glow"></div>
+            <div class="card-header">
+              <span class="card-title">TOTAL COUNT</span>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round"/>
+                  <polyline points="22 4 12 14.01 9 11.01" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="value-container font-mono">
+                <span class="value-number" id="val-total-count">4,250</span>
+                <span class="value-unit">Units</span>
+              </div>
+              <div class="card-footer-info">
+                <span>Cumulative total</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Target Count -->
+          <div class="t-card target-card">
+            <div class="card-edge-glow"></div>
+            <div class="card-header">
+              <span class="card-title">TARGET COUNT</span>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="6"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="value-container font-mono">
+                <span class="value-number" id="val-target-count">10,000</span>
+                <span class="value-unit">Units</span>
+              </div>
+              <div class="progress-container">
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="target-progress-bar" style="width: 42.5%;"></div>
+                </div>
+                <div class="progress-labels">
+                  <span class="progress-percentage" id="target-progress-pct">42.5%</span>
+                  <span class="progress-remaining" id="target-remaining-count">5,750 left</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Current Machine Speed -->
+          <div class="t-card speed-card">
+            <div class="card-edge-glow"></div>
+            <div class="card-header">
+              <span class="card-title">CURRENT SPEED</span>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 6v6l4 2"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="speedometer-layout">
+                <div class="speed-value font-mono">
+                  <span class="value-number" id="val-machine-speed">85</span>
+                  <span class="value-unit">U/Min</span>
+                </div>
+                <div class="speed-gauge-wrapper">
+                  <svg viewBox="0 0 100 50" class="gauge-svg">
+                    <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8" stroke-linecap="round"></path>
+                    <path id="gauge-fill-arc" d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="var(--cyan-neon)" stroke-width="8" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="125.6"></path>
+                  </svg>
+                </div>
+              </div>
+              <div class="card-footer-info">
+                <span>Production rate velocity</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Breakdown Time -->
+          <div class="t-card breakdown-card">
+            <div class="card-edge-glow"></div>
+            <div class="card-header">
+              <span class="card-title">BREAKDOWN TIME</span>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line x1="12" y1="9" x2="12" y2="13" stroke-linecap="round"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="value-container font-mono">
+                <span class="value-number status-normal" id="val-breakdown-time">00:00:00</span>
+              </div>
+              <div class="card-footer-info">
+                <span id="breakdown-status-label">No active faults</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Analytics & Control Center -->
+        <div class="visual-analytics">
+          <!-- Real-time telemetry chart -->
+          <div class="hmi-panel chart-panel">
+            <div class="panel-header">
+              <h3>REAL-TIME SPEED TELEMETRY</h3>
+              <div class="panel-header-controls">
+                <span class="legend font-mono"><span class="legend-dot bg-cyan"></span>Speed (Units/Min)</span>
+              </div>
+            </div>
+            <div class="panel-body chart-body">
+              <canvas id="live-telemetry-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Simulation & Operation Panel -->
+          <div class="hmi-panel control-panel">
+            <div class="panel-header">
+              <h3>SIMULATION CONTROL CONSOLE</h3>
+            </div>
+            <div class="panel-body console-body">
+              <!-- Controls grid -->
+              <div class="console-controls">
+                <div class="control-row">
+                  <label for="input-operator">Set Operator:</label>
+                  <input type="text" id="input-operator" value="Naveen Kumar">
+                </div>
+                
+                <div class="control-row">
+                  <label for="input-machine">Set Machine Name:</label>
+                  <input type="text" id="input-machine" value="RION-FRAG-3000 MULTI-FILL SYSTEM">
+                </div>
+
+                <div class="control-row">
+                  <label for="input-target">Target Count:</label>
+                  <input type="number" id="input-target" value="10000" min="100" max="1000000" step="500">
+                </div>
+
+                <div class="control-row">
+                  <label for="input-speed-setpoint">Target Speed (U/Min):</label>
+                  <div class="slider-wrapper">
+                    <input type="range" id="input-speed-setpoint" min="20" max="150" value="85">
+                    <span id="speed-setpoint-label" class="font-mono">85</span>
+                  </div>
+                </div>
+
+                <div class="action-buttons">
+                  <button class="hmi-btn btn-warning" id="btn-simulate-breakdown">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    </svg>
+                    Simulate Breakdown
+                  </button>
+                  <button class="hmi-btn btn-success" id="btn-resume-normal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                      <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Resume Machine
+                  </button>
+                  <button class="hmi-btn btn-primary" id="btn-reset-counter">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    Reset Count
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live Log -->
+              <div class="console-logs">
+                <div class="log-header">
+                  <span>HMI SYSTEM LOGS</span>
+                  <button id="clear-logs-btn">Clear</button>
+                </div>
+                <div class="log-list font-mono" id="log-console">
+                  <div class="log-item">[04:17:33] SYSTEM ONLINE - Ready for simulation</div>
+                  <div class="log-item">[04:17:34] Initializing Modbus IoT Gateway Connection</div>
+                  <div class="log-item">[04:17:35] Machine status: RUNNING at 85 U/Min</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="hmi-footer">
+      <div class="footer-left">
+        <span class="powered-by">POWERED BY <strong class="rion-text">RION TECHNOLOGIES</strong>, Chennai</span>
+      </div>
+      
+      <div class="footer-center">
+        <div class="contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="footer-icon">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          <span class="contact-value">Mobile: 7358865706</span>
+        </div>
+        <div class="footer-separator">•</div>
+        <div class="contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="footer-icon">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          <span class="contact-value">Mail: <a href="mailto:mail@rionxt.com">mail@rionxt.com</a></span>
+        </div>
+      </div>
+
+      <div class="footer-right">
+        <span class="system-ver font-mono">SCADA HOST V2.4 - ONLINE</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
