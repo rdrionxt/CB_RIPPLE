@@ -3,8 +3,9 @@ let mqttClient = null;
 
 // Initialize MQTT WebSockets connection
 function initMQTT() {
+  const isSecure = window.location.protocol === "https:";
   const broker = "broker.hivemq.com";
-  const port = 8000; // Public WebSocket port
+  const port = isSecure ? 8884 : 8000; // 8884 for secure WSS, 8000 for insecure WS
   const clientId = "ripple-dashboard-" + Math.floor(Math.random() * 10000);
   
   mqttClient = new Paho.MQTT.Client(broker, port, clientId);
@@ -23,15 +24,15 @@ function initMQTT() {
   mqttClient.connect({
     onSuccess: () => {
       console.log("MQTT Connected");
-      addLog("MQTT", "Connected to broker.hivemq.com:8000", "success");
+      addLog("MQTT", `Connected to broker.hivemq.com:${port}`, "success");
       mqttClient.subscribe("CB_RN_IOT_DATA_OUT");
     },
     onFailure: (err) => {
       console.error("MQTT Connection Failed:", err);
-      addLog("MQTT", "Failed to connect to broker", "alert");
+      addLog("MQTT", "Failed to connect to broker: " + (err.errorMessage || JSON.stringify(err)), "alert");
       setTimeout(initMQTT, 5000);
     },
-    useSSL: false
+    useSSL: isSecure
   });
 }
 
