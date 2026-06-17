@@ -1536,11 +1536,6 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
   }
 
   if (rcv_data.containsKey("shift_start")) {
-    if (is_shift_data_updated == true) {
-      Serial.println("⚠️ Old shift active during shift_start — auto-submitting metrics first");
-      fetchShiftSummary();
-      sendShiftSummary();
-    }
     is_shift_data_updated = true;
     is_shift_completed = false;
     shift_update_received = 1;
@@ -4145,11 +4140,6 @@ void setup() {
         ((shift != shift_temp) ||
          ((shift == shift_temp) && (is_day_change == true)))) {
       Serial.println("Reboot shift reset triggered! Stored Shift: " + shift + ", Calculated: " + shift_temp + ", DayChange: " + String(is_day_change));
-      
-      // Auto-submit previous shift data on next day boot
-      fetchShiftSummary();
-      sendShiftSummary();
-      
       is_shift_data_updated = false;
       shift_reset();
     }
