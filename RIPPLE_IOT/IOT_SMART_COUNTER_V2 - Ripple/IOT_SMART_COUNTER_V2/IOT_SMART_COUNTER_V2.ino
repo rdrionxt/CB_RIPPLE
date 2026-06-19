@@ -237,6 +237,12 @@
  */
 #define MQTT_RETRY_INTERVAL 5000UL
 
+#if defined(DEVICE_SLAVE3)
+  #define STATION_INACTIVITY_LIMIT 50000UL
+#else
+  #define STATION_INACTIVITY_LIMIT 5000UL
+#endif
+
 /**
  * @def TIME_SCALE
  * @brief Scaler used to represent float times with 0.1 minute resolution in FRAM.
@@ -748,6 +754,7 @@ bool set_time_flag = false;
 volatile uint16_t presense = 0;
 volatile uint32_t last_seen_sense = 0;
 volatile uint32_t last_pulse_time = 0;
+volatile uint16_t last_seen_counts[MAX_STATIONS] = {0};
 uint32_t start_millis1 = 0;
 uint32_t working_millis = 0;
 uint32_t bd_millis = 0;
@@ -1347,7 +1354,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[0] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[0].length() > 0 ? station_operators[0] : op_cap;
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
@@ -1360,7 +1367,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[1] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[1] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[1].length() > 0 ? station_operators[1] : op_cap;
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
@@ -1373,7 +1380,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[2];
       float station_work = station_working_mins[2];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[2] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[2] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[2] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[2].length() > 0 ? station_operators[2] : op_cap;
       st["workingMins"] = station_working_mins[2];
       st["breakdownMins"] = station_breakdown_mins[2];
@@ -1387,7 +1394,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[0] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[0].length() > 0 ? station_operators[0] : op_cap;
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
@@ -1400,7 +1407,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[1] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[1] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[1].length() > 0 ? station_operators[1] : op_cap;
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
@@ -1413,7 +1420,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[2];
       float station_work = station_working_mins[2];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[2] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[2] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[2] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[2].length() > 0 ? station_operators[2] : op_cap;
       st["workingMins"] = station_working_mins[2];
       st["breakdownMins"] = station_breakdown_mins[2];
@@ -1427,7 +1434,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[0] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[0].length() > 0 ? station_operators[0] : op_cap;
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
@@ -1440,7 +1447,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[1] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[1] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[1].length() > 0 ? station_operators[1] : op_cap;
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
@@ -1454,7 +1461,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[0] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[0].length() > 0 ? station_operators[0] : op_cap;
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
@@ -1467,7 +1474,7 @@ void send_mqtt() {
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
-      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["status"] = (millis() - last_pulse_time_st[0] < STATION_INACTIVITY_LIMIT) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
       st["operator"] = station_operators[1].length() > 0 ? station_operators[1] : op_cap;
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
@@ -1602,7 +1609,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
     is_shift_data_updated = false;
     shift_update_received = 1;
     for (int i = 0; i < MAX_STATIONS; i++) {
-      last_pulse_time_st[i] = millis() - 60000;
+      last_pulse_time_st[i] = millis() - (STATION_INACTIVITY_LIMIT + 10000);
     }
     shift_reset();
     eeprom_store();
@@ -1757,7 +1764,7 @@ void updateDWINDisplay() {
     if (!is_shift_data_updated) {
       dwin_machine_state = "WAIT";
     } else {
-      bool is_st_running = (millis() - last_pulse_time_st[dwin_active_station_idx] < 5000);
+      bool is_st_running = (millis() - last_pulse_time_st[dwin_active_station_idx] < STATION_INACTIVITY_LIMIT);
       if (is_st_running) {
         dwin_machine_state = "On";
       } else if (is_major_bd) {
@@ -2825,13 +2832,14 @@ void run_reset() {
   for (int i = 0; i < MAX_STATIONS; i++) {
     station_counts[i] = 0;
     station_shift_counts[i] = 0;
-    last_pulse_time_st[i] = millis() - 6000;
+    last_pulse_time_st[i] = millis() - (STATION_INACTIVITY_LIMIT + 1000);
     station_bd_reasons[i] = "";
     station_working_mins[i] = 0.0f;
     station_breakdown_mins[i] = 0.0f;
+    last_seen_counts[i] = 0;
   }
   last_seen_sense = 0;
-  last_pulse_time = millis() - 6000;
+  last_pulse_time = millis() - (STATION_INACTIVITY_LIMIT + 1000);
   bd_count = 0;
   base_working_shift_mins = 0;
   base_bd_shift_mins = 0;
@@ -4292,7 +4300,10 @@ void setup() {
   ArduinoOTA.begin();
 
   last_seen_sense = sense;
-  last_pulse_time = millis() - 6000;
+  for (int i = 0; i < MAX_STATIONS; i++) {
+    last_seen_counts[i] = station_counts[i];
+  }
+  last_pulse_time = millis() - (STATION_INACTIVITY_LIMIT + 1000);
 }
 
 /**
@@ -4406,7 +4417,10 @@ void loop() {
       bd_count = 0;
       sense = 0;
       last_seen_sense = 0;
-      last_pulse_time = millis() - 6000;
+      for (int i = 0; i < MAX_STATIONS; i++) {
+        last_seen_counts[i] = 0;
+      }
+      last_pulse_time = millis() - (STATION_INACTIVITY_LIMIT + 1000);
       shift_count = 0;
 
       base_working_shift_mins = 0.0f;
@@ -4510,7 +4524,10 @@ void loop() {
         spare_detail = "";
         sense = 0;
         last_seen_sense = 0;
-        last_pulse_time = millis() - 6000;
+        for (int i = 0; i < MAX_STATIONS; i++) {
+          last_seen_counts[i] = 0;
+        }
+        last_pulse_time = millis() - (STATION_INACTIVITY_LIMIT + 1000);
         spare_qty = "";
         bd_remarks = "";
         upload_state = 1;
@@ -4539,13 +4556,19 @@ void loop() {
       green_blink();
     }
 
-    // Track sensor pulse inactivity
-    if (sense != last_seen_sense) {
-      last_seen_sense = sense;
+    // Track sensor pulse inactivity across all active stations
+    bool any_count_changed = false;
+    for (int i = 0; i < NUM_ACTUAL_STATIONS; i++) {
+      if (station_counts[i] != last_seen_counts[i]) {
+        last_seen_counts[i] = station_counts[i];
+        any_count_changed = true;
+      }
+    }
+    if (any_count_changed) {
       last_pulse_time = millis();
     }
 
-    if (start_flag && (millis() - last_pulse_time < 5000)) {
+    if (start_flag && (millis() - last_pulse_time < STATION_INACTIVITY_LIMIT)) {
       motor1_status = 1;
     } else {
       motor1_status = 0;
@@ -4684,7 +4707,7 @@ void loop() {
     last_sec_tick = millis();
     if (is_shift_data_updated && !is_shift_completed) {
       for (int i = 0; i < MAX_STATIONS; i++) {
-        bool is_st_running = (millis() - last_pulse_time_st[i] < 5000);
+        bool is_st_running = (millis() - last_pulse_time_st[i] < STATION_INACTIVITY_LIMIT);
         if (is_st_running) {
           station_working_mins[i] += elapsed_mins;
         } else if (is_major_bd) {
