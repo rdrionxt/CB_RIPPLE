@@ -22,22 +22,25 @@
 #if defined(DEVICE_SLAVE1)
   #define NUM_INPUTS 3
   #define IN1_PIN 6
-  #define IN2_PIN 5
-  #define IN3_PIN 4
+  #define IN2_PIN 7
+  #define IN3_PIN 17
+  #define IN4_PIN 19
   #define DEVICE_NAME_DEFAULT "Slave 1: Pressing & Cupping"
   #define DEVICE_ID_DEFAULT "SL-001"
 #elif defined(DEVICE_SLAVE2)
   #define NUM_INPUTS 3
   #define IN1_PIN 6
-  #define IN2_PIN 5
-  #define IN3_PIN 4
+  #define IN2_PIN 7
+  #define IN3_PIN 17
+  #define IN4_PIN 19
   #define DEVICE_NAME_DEFAULT "Slave 2: Cupping Station"
   #define DEVICE_ID_DEFAULT "SL-002"
 #elif defined(DEVICE_SLAVE3)
   #define NUM_INPUTS 2
   #define IN1_PIN 6
-  #define IN2_PIN 5
+  #define IN2_PIN 7
   #define IN3_PIN -1
+  #define IN4_PIN -1
   #define DEVICE_NAME_DEFAULT "Slave 3: Pouching & Sealing"
   #define DEVICE_ID_DEFAULT "SL-003"
 #elif defined(DEVICE_SLAVE4)
@@ -45,6 +48,7 @@
   #define IN1_PIN 6
   #define IN2_PIN -1
   #define IN3_PIN -1
+  #define IN4_PIN -1
   #define DEVICE_NAME_DEFAULT "Slave 4: Lebelling and box packaging"
   #define DEVICE_ID_DEFAULT "SL-004"
 #else
@@ -179,6 +183,9 @@
 #define STATION1_OP_ADDR 2850
 #define STATION2_OP_ADDR 2870
 #define STATION3_OP_ADDR 2890
+#define POUCH_QTY_ADDR 542
+#define INNER_QTY_ADDR 544
+#define OUTER_QTY_ADDR 546
 /** @} */
 
 /**
@@ -802,6 +809,11 @@ uint32_t start_millis = 0;
 bool manual_check = false;
 bool one_time_flag = 0;
 
+uint16_t qty_per_pouch = 10;
+uint16_t box_pouch_qty = 10;
+uint16_t box_inner_qty = 1;
+uint16_t box_outer_qty = 1;
+
 float total_working_shift_mins = 0.0f;
 float total_bd_shift_mins = 0.0f;
 float base_working_shift_mins = 0.0f;
@@ -870,7 +882,7 @@ String shift_bd_log = "";
 #elif defined(DEVICE_SLAVE3)
   const char* const dwin_station_names[] = {"POUCHING 1", "POUCHING 2"};
 #elif defined(DEVICE_SLAVE4)
-  const char* const dwin_station_names[] = {"LABEL & BOX"};
+  const char* const dwin_station_names[] = {"LABELLING", "CASE PACKING"};
 #else
   const char* const dwin_station_names[] = {"STATION 1"};
 #endif
@@ -1448,6 +1460,19 @@ void send_mqtt() {
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
     }
+    {
+      JsonObject st = stations.createNestedObject();
+      st["id"] = "st-10";
+      st["actual"] = station_counts[0];
+      st["t_count"] = station_shift_counts[0];
+      float station_work = station_working_mins[0];
+      st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
+      st["status"] = (millis() - last_pulse_time_st[0] < 5000) ? "Running" : (is_major_bd ? "Major Breakdown" : "Idle");
+      st["operator"] = station_operators[1].length() > 0 ? station_operators[1] : op_cap;
+      st["workingMins"] = station_working_mins[0];
+      st["breakdownMins"] = station_breakdown_mins[0];
+      st["breakdownReason"] = station_bd_reasons[0];
+    }
 #endif
 
     serializeJson(values_json, send_json, sizeof(send_json));
@@ -1518,6 +1543,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
         else if (incomingStId == "st-11") stationIdx = 1;
       #elif defined(DEVICE_SLAVE4)
         if (incomingStId == "st-09") stationIdx = 0;
+        else if (incomingStId == "st-10") stationIdx = 1;
       #endif
     }
     if (stationIdx >= 0 && stationIdx < MAX_STATIONS) {
@@ -1526,6 +1552,32 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
       for (int i = 0; i < MAX_STATIONS; i++) {
         station_operators[i] = operator_name;
       }
+    }
+  }
+
+  if (rcv_data.containsKey("pouch_qty")) {
+    qty_per_pouch = rcv_data["pouch_qty"].as<uint16_t>();
+    framWrite8(POUCH_QTY_ADDR, (uint8_t)qty_per_pouch);
+    Serial.printf("⚙ Saved qty_per_pouch via MQTT: %d\n", qty_per_pouch);
+  }
+
+  if (rcv_data.containsKey("outer_box")) {
+    String outerBoxStr = rcv_data["outer_box"].as<String>();
+    int firstUnderscore = outerBoxStr.indexOf('_');
+    int secondUnderscore = outerBoxStr.indexOf('_', firstUnderscore + 1);
+    if (firstUnderscore > 0 && secondUnderscore > 0) {
+      String pStr = outerBoxStr.substring(0, firstUnderscore);
+      String iStr = outerBoxStr.substring(firstUnderscore + 1, secondUnderscore);
+      String oStr = outerBoxStr.substring(secondUnderscore + 1);
+      
+      box_pouch_qty = pStr.toInt();
+      box_inner_qty = (iStr == "Nill" || iStr == "NILL" || iStr == "nill") ? 1 : iStr.toInt();
+      box_outer_qty = oStr.toInt();
+      
+      framWrite8(POUCH_QTY_ADDR, (uint8_t)box_pouch_qty);
+      framWrite8(INNER_QTY_ADDR, (uint8_t)box_inner_qty);
+      framWrite8(OUTER_QTY_ADDR, (uint8_t)box_outer_qty);
+      Serial.printf("⚙ Saved outer box config via MQTT: pouch=%d, inner=%d, outer=%d\n", box_pouch_qty, box_inner_qty, box_outer_qty);
     }
   }
 
@@ -1584,6 +1636,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
         else if (incomingStId == "st-11") stationIdx = 1;
       #elif defined(DEVICE_SLAVE4)
         if (incomingStId == "st-09") stationIdx = 0;
+        else if (incomingStId == "st-10") stationIdx = 1;
       #endif
     } else {
       stationIdx = dwin_active_bd_station_idx;
@@ -1739,12 +1792,38 @@ void updateDWINDisplay() {
       dwinWriteString(0x5000, "Done", 32);
     }
     
+#if defined(DEVICE_SLAVE3)
+    uint16_t multiplier = qty_per_pouch;
+    uint32_t divisor = 1;
+#elif defined(DEVICE_SLAVE4)
+    uint16_t multiplier = 1;
+    uint32_t divisor = 1;
+#else
+    uint16_t multiplier = 1;
+    uint32_t divisor = 1;
+#endif
+
     float cur_speed = 0.0f;
     if (is_shift_data_updated) {
+#if defined(DEVICE_SLAVE4)
+      float station_work = station_working_mins[0];
+      if (station_work > 0.1f) {
+        if (dwin_active_station_idx == 0) {
+          cur_speed = ((float)station_shift_counts[0] * box_pouch_qty) / station_work;
+        } else {
+          uint32_t inner_outer = (uint32_t)box_inner_qty * box_outer_qty;
+          if (inner_outer == 0) inner_outer = 1;
+          uint32_t case_qty = (uint32_t)box_pouch_qty * inner_outer;
+          uint32_t completed_boxes = station_shift_counts[0] / inner_outer;
+          cur_speed = ((float)completed_boxes * case_qty) / station_work;
+        }
+      }
+#else
       float station_work = (dwin_active_station_idx < MAX_STATIONS) ? station_working_mins[dwin_active_station_idx] : total_working_shift_mins;
       if (station_work > 0.1f) {
-        cur_speed = (float)station_shift_counts[dwin_active_station_idx] / station_work;
+        cur_speed = (((float)station_shift_counts[dwin_active_station_idx] * multiplier) / divisor) / station_work;
       }
+#endif
     }
     String speedStr = String(cur_speed, 2);
     dwinWriteString(0x3000, speedStr, 16);
@@ -1752,6 +1831,10 @@ void updateDWINDisplay() {
     uint16_t active_work_mins = 0;
     uint16_t active_bd_mins = 0;
     if (is_shift_data_updated) {
+#if defined(DEVICE_SLAVE4)
+      active_work_mins = (uint16_t)station_working_mins[0];
+      active_bd_mins = (uint16_t)station_breakdown_mins[0];
+#else
       if (dwin_active_station_idx < MAX_STATIONS) {
         active_work_mins = (uint16_t)station_working_mins[dwin_active_station_idx];
         active_bd_mins = (uint16_t)station_breakdown_mins[dwin_active_station_idx];
@@ -1759,13 +1842,33 @@ void updateDWINDisplay() {
         active_work_mins = (uint16_t)total_working_shift_mins;
         active_bd_mins = (uint16_t)total_bd_shift_hrs;
       }
+#endif
     }
 
     dwinWriteInt(0x3010, active_work_mins);
     dwinWriteInt(0x3020, active_bd_mins);
-    dwinWriteInt(0x3030, is_shift_data_updated ? station_counts[dwin_active_station_idx] : 0);
+#if defined(DEVICE_SLAVE4)
+    uint32_t inner_outer = (uint32_t)box_inner_qty * box_outer_qty;
+    if (inner_outer == 0) inner_outer = 1;
+    uint32_t case_qty = (uint32_t)box_pouch_qty * inner_outer;
+    
+    uint32_t act_count = 0;
+    uint32_t sh_count = 0;
+    if (dwin_active_station_idx == 0) {
+      act_count = (uint32_t)station_counts[0] * box_pouch_qty;
+      sh_count = (uint32_t)station_shift_counts[0] * box_pouch_qty;
+    } else {
+      act_count = (uint32_t)(station_counts[0] / inner_outer) * case_qty;
+      sh_count = (uint32_t)(station_shift_counts[0] / inner_outer) * case_qty;
+    }
+    dwinWriteInt(0x3030, is_shift_data_updated ? (uint16_t)act_count : 0);
     dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)bd_time : 0);
-    dwinWriteInt(0x3050, is_shift_data_updated ? (uint16_t)station_shift_counts[dwin_active_station_idx] : 0);
+    dwinWriteInt(0x3050, is_shift_data_updated ? (uint16_t)sh_count : 0);
+#else
+    dwinWriteInt(0x3030, is_shift_data_updated ? (uint16_t)((station_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
+    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)bd_time : 0);
+    dwinWriteInt(0x3050, is_shift_data_updated ? (uint16_t)((station_shift_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
+#endif
   }
 }
 
@@ -3092,6 +3195,14 @@ void eeprom_read2() {
  * @brief Read shift statistics and state flags from FRAM.
  */
 void eeprom_read3() {
+  station_counts[0] = (framRead8(count_add1) << 0) | (framRead8(count_add2) << 8);
+#if NUM_INPUTS >= 2
+  station_counts[1] = (framRead8(count2_add1) << 0) | (framRead8(count2_add2) << 8);
+#endif
+#if NUM_INPUTS >= 3
+  station_counts[2] = (framRead8(count3_add1) << 0) | (framRead8(count3_add2) << 8);
+#endif
+
   station_shift_counts[0] = (framRead8(t_s_count_add1) << 0) | (framRead8(t_s_count_add2) << 8);
 #if NUM_INPUTS >= 2
   station_shift_counts[1] = (framRead8(t_s_count2_add1) << 0) | (framRead8(t_s_count2_add2) << 8);
@@ -3972,6 +4083,26 @@ void setup() {
     unit_name = "RIPPLE";
   }
 
+  qty_per_pouch = framRead8(POUCH_QTY_ADDR);
+  if (qty_per_pouch == 0 || qty_per_pouch == 255) {
+    qty_per_pouch = 10;
+  }
+  Serial.printf("⚙ Loaded qty_per_pouch from FRAM: %d\n", qty_per_pouch);
+
+  box_pouch_qty = framRead8(POUCH_QTY_ADDR);
+  if (box_pouch_qty == 0 || box_pouch_qty == 255) {
+    box_pouch_qty = 10;
+  }
+  box_inner_qty = framRead8(INNER_QTY_ADDR);
+  if (box_inner_qty == 0 || box_inner_qty == 255) {
+    box_inner_qty = 1;
+  }
+  box_outer_qty = framRead8(OUTER_QTY_ADDR);
+  if (box_outer_qty == 0 || box_outer_qty == 255) {
+    box_outer_qty = 1;
+  }
+  Serial.printf("⚙ Loaded box config from FRAM: pouch=%d, inner=%d, outer=%d\n", box_pouch_qty, box_inner_qty, box_outer_qty);
+
   if (framRead8(shift_data_update) == 1) {
     is_shift_data_updated = true;
     unit_name = framReadString(unit_name_add);
@@ -4157,6 +4288,7 @@ void setup() {
   telnetServer.begin();
   telnetServer.setNoDelay(true);
   ArduinoOTA.setHostname(device_name.c_str());
+  ArduinoOTA.setPassword("admin");
   ArduinoOTA.begin();
 
   last_seen_sense = sense;

@@ -62,9 +62,26 @@ function handleIncomingMessage(topic, payload) {
         if (station) {
           if (state.shiftActive) {
             station.actualRaw = incomingSt.actual;
-            const mult = getStationMultiplier(station.id);
-            station.actual = incomingSt.actual * mult;
-            station.speed = (incomingSt.speed || 0) * mult;
+            if (station.id === 'st-10') {
+              let qty_per_pouches = 10;
+              let inner_box_qty = 1;
+              let outer_box_qty = 1;
+              if (state.shiftConfig && state.shiftConfig.outerBox) {
+                const parts = state.shiftConfig.outerBox.split('_');
+                qty_per_pouches = parseInt(parts[0]) || 10;
+                inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
+                outer_box_qty = parseInt(parts[2]) || 1;
+              }
+              const completed_boxes = Math.floor(incomingSt.actual / (inner_box_qty * outer_box_qty));
+              const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
+              station.actual = completed_boxes * case_qty;
+              station.actualRaw = completed_boxes;
+              station.speed = (incomingSt.speed || 0) * qty_per_pouches;
+            } else {
+              const mult = getStationMultiplier(station.id);
+              station.actual = incomingSt.actual * mult;
+              station.speed = (incomingSt.speed || 0) * mult;
+            }
             station.status = incomingSt.status || "Running";
             if (typeof incomingSt.workingMins === 'number') station.workingMins = incomingSt.workingMins;
             if (typeof incomingSt.breakdownMins === 'number') station.breakdownMins = incomingSt.breakdownMins;
@@ -333,7 +350,8 @@ const state = {
       mac: '00:E0:4C:53:11:D5',
       status: 'Connected',
       stations: [
-        { id: 'st-09', name: 'Lebelling & Box Packaging', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MUBINA', workingMins: 0, breakdownMins: 0 }
+        { id: 'st-09', name: 'Labelling', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MUBINA', workingMins: 0, breakdownMins: 0 },
+        { id: 'st-10', name: 'Case Packing', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MUBINA', workingMins: 0, breakdownMins: 0 }
       ]
     }
   ]
@@ -613,15 +631,13 @@ function getStationMultiplier(stationId) {
   }
   if (stationId === 'st-09') {
     let qty_per_pouches = 10;
-    let inner_box_qty = 1;
-    let outer_box_qty = 1;
     if (state.shiftConfig && state.shiftConfig.outerBox) {
       const parts = state.shiftConfig.outerBox.split('_');
       qty_per_pouches = parseInt(parts[0]) || 10;
-      inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
-      outer_box_qty = parseInt(parts[2]) || 1;
+    } else if (state.shiftConfig && state.shiftConfig.pouchQty) {
+      qty_per_pouches = state.shiftConfig.pouchQty;
     }
-    return qty_per_pouches * inner_box_qty * outer_box_qty;
+    return qty_per_pouches;
   }
   return 1;
 }
@@ -693,7 +709,12 @@ function renderActiveSlaveView() {
                 ` : ''}
                 ${station.id === 'st-09' ? `
                   <span class="metric-sub-label" style="font-size: 0.65rem; color: var(--accent-peach); display: block; margin-top: 2px;">
-                    Boxes: ${(station.actualRaw || 0).toLocaleString()}
+                    Pouches: ${(station.actualRaw || 0).toLocaleString()}
+                  </span>
+                ` : ''}
+                ${station.id === 'st-10' ? `
+                  <span class="metric-sub-label" style="font-size: 0.65rem; color: var(--accent-peach); display: block; margin-top: 2px;">
+                    Box Cases: ${(station.actualRaw || 0).toLocaleString()}
                   </span>
                 ` : ''}
               </div>
@@ -814,7 +835,12 @@ function renderActiveSlaveView() {
             ` : ''}
             ${station.id === 'st-09' ? `
               <span class="metric-sub-label" style="font-size: 0.65rem; color: var(--accent-peach); display: block; margin-top: 2px;">
-                Boxes: ${(station.actualRaw || 0).toLocaleString()}
+                Pouches: ${(station.actualRaw || 0).toLocaleString()}
+              </span>
+            ` : ''}
+            ${station.id === 'st-10' ? `
+              <span class="metric-sub-label" style="font-size: 0.65rem; color: var(--accent-peach); display: block; margin-top: 2px;">
+                Box Cases: ${(station.actualRaw || 0).toLocaleString()}
               </span>
             ` : ''}
           </div>
@@ -1448,6 +1474,8 @@ function doneShiftStart() {
       shift: shiftName,
       operator: firstOp,
       operators: stationOps,
+      pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
+      outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
       shift_start: true
     });
   });
@@ -1495,7 +1523,7 @@ function openShiftEndModal() {
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
         <input type="number" class="rejection-input" data-station-id="${station.id}" value="0" min="0" max="${Math.floor(station.actual)}" style="width: 100px; padding: 6px; background:var(--bg-dark); border:1px solid var(--border-color); color:var(--text-white); border-radius:var(--radius-sm); font-family:var(--font-mono); outline:none;">
-        <span style="font-size:0.75rem; color:var(--text-muted);">Units</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${station.id === 'st-10' ? 'Boxes' : 'Units'}</span>
       </div>
     `;
     listContainer.appendChild(stationRow);
@@ -1751,12 +1779,12 @@ function doneShiftEnd() {
   summaryText += `*Date:* ${orderDate} | *Shift:* ${shiftName}\n`;
   if (state.shiftConfig) {
     const boxLabels = {
-      "10_12_48": "10 (Inner: 12, Outer: 48)",
-      "24_8_32": "24 (Inner: 8, Outer: 32)",
-      "30_Nill_30": "30 (Inner: Nill, Outer: 30)",
-      "50_Nill_20": "50 (Inner: Nill, Outer: 20)",
-      "50_8_16": "50 (Inner: 8, Outer: 16)",
-      "100_4_8": "100 (Inner: 4, Outer: 8)"
+      "10_12_48": "pouch: 10, inner: 12, outer: 48",
+      "24_8_32": "pouch: 24, inner: 8, outer: 32",
+      "30_Nill_30": "pouch: 30, inner: Nill, outer: 30",
+      "50_Nill_20": "pouch: 50, inner: Nill, outer: 20",
+      "50_8_16": "pouch: 50, inner: 8, outer: 16",
+      "100_4_8": "pouch: 100, inner: 4, outer: 8"
     };
     const boxLabel = boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox;
     summaryText += `*Cup Size:* ${state.shiftConfig.cupSize} | *Qty/Pouch:* ${state.shiftConfig.pouchQty}\n`;
@@ -2153,6 +2181,17 @@ function applyActiveOrder() {
         station.target = Math.round(T / 2);
       } else if (station.id === 'st-09') {
         station.target = T;
+      } else if (station.id === 'st-10') {
+        let qty_per_pouches = 10;
+        let inner_box_qty = 1;
+        let outer_box_qty = 1;
+        if (state.shiftConfig && state.shiftConfig.outerBox) {
+          const parts = state.shiftConfig.outerBox.split('_');
+          qty_per_pouches = parseInt(parts[0]) || 10;
+          inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
+          outer_box_qty = parseInt(parts[2]) || 1;
+        }
+        station.target = Math.round(T / (qty_per_pouches * inner_box_qty * outer_box_qty));
       }
     });
   });
