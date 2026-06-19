@@ -14,10 +14,10 @@
 /* ========================================================================== */
 
 // Choose active device here (uncomment exactly one)
-// #define DEVICE_SLAVE1
+#define DEVICE_SLAVE1
 // #define DEVICE_SLAVE2
 // #define DEVICE_SLAVE3
-#define DEVICE_SLAVE4
+// #define DEVICE_SLAVE4
 
 #if defined(DEVICE_SLAVE1)
   #define NUM_INPUTS 3
@@ -883,9 +883,9 @@ float station_breakdown_mins[MAX_STATIONS] = {0.0f};
 String shift_bd_log = "";
  
 #if defined(DEVICE_SLAVE1)
-  const char* const dwin_station_names[] = {"PRESSING 1", "CUPPING 1", "CUPPING 2"};
+  const char* const dwin_station_names[] = {"PRESSING 1", "CUPPING 5", "CUPPING 4"};
 #elif defined(DEVICE_SLAVE2)
-  const char* const dwin_station_names[] = {"CUPPING 3", "CUPPING 4", "CUPPING 5"};
+  const char* const dwin_station_names[] = {"CUPPING 3", "CUPPING 2", "CUPPING 1"};
 #elif defined(DEVICE_SLAVE3)
   const char* const dwin_station_names[] = {"POUCHING 1", "POUCHING 2"};
 #elif defined(DEVICE_SLAVE4)
@@ -1592,6 +1592,12 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
     shift = rcv_data["shift"].as<String>();
     framWriteString(shift_add, shift);
     Serial.println("⚙ Saved shift via MQTT: " + shift);
+  }
+
+  if (rcv_data.containsKey("maintenance")) {
+    maintenance_name = rcv_data["maintenance"].as<String>();
+    framWriteString(maintenance_name_add, maintenance_name);
+    Serial.println("⚙ Saved maintenance_name via MQTT: " + maintenance_name);
   }
 
   if (rcv_data.containsKey("shift_start")) {

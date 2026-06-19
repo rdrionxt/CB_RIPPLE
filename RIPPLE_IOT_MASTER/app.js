@@ -319,8 +319,8 @@ const state = {
       status: 'Connected',
       stations: [
         { id: 'st-01', name: 'Pressing_1', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'SAGAR B.K', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-02', name: 'Cupping 1', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'SHIVKUMAR', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-03', name: 'Cupping 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'LIKITH.B', workingMins: 0, breakdownMins: 0 }
+        { id: 'st-02', name: 'Cupping 5', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'SHIVKUMAR', workingMins: 0, breakdownMins: 0 },
+        { id: 'st-03', name: 'Cupping 4', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'LIKITH.B', workingMins: 0, breakdownMins: 0 }
       ]
     },
     {
@@ -330,8 +330,8 @@ const state = {
       status: 'Connected',
       stations: [
         { id: 'st-04', name: 'Cupping 3', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MANJULA.S', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-05', name: 'Cupping 4', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'PRIYANKA', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-06', name: 'Cupping 5', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'SRIDEVI', workingMins: 0, breakdownMins: 0 }
+        { id: 'st-05', name: 'Cupping 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'PRIYANKA', workingMins: 0, breakdownMins: 0 },
+        { id: 'st-06', name: 'Cupping 1', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'SRIDEVI', workingMins: 0, breakdownMins: 0 }
       ]
     },
     {
@@ -1403,9 +1403,13 @@ function openShiftStartModal() {
     const cupSizeEl = document.getElementById('shift-cup-size');
     const pouchQtyEl = document.getElementById('shift-pouch-qty');
     const outerBoxEl = document.getElementById('shift-outer-box');
+    const supervisorEl = document.getElementById('shift-supervisor');
+    const maintenanceEl = document.getElementById('shift-maintenance');
     if (cupSizeEl) cupSizeEl.value = state.shiftConfig.cupSize;
     if (pouchQtyEl) pouchQtyEl.value = state.shiftConfig.pouchQty;
     if (outerBoxEl) outerBoxEl.value = state.shiftConfig.outerBox;
+    if (supervisorEl && state.shiftConfig.supervisor) supervisorEl.value = state.shiftConfig.supervisor;
+    if (maintenanceEl && state.shiftConfig.maintenance) maintenanceEl.value = state.shiftConfig.maintenance;
   }
 }
 
@@ -1438,10 +1442,14 @@ function doneShiftStart() {
   const cupSizeEl = document.getElementById('shift-cup-size');
   const pouchQtyEl = document.getElementById('shift-pouch-qty');
   const outerBoxEl = document.getElementById('shift-outer-box');
+  const supervisorEl = document.getElementById('shift-supervisor');
+  const maintenanceEl = document.getElementById('shift-maintenance');
   state.shiftConfig = {
     cupSize: cupSizeEl ? cupSizeEl.value : '9mm',
     pouchQty: pouchQtyEl ? parseInt(pouchQtyEl.value, 10) : 10,
-    outerBox: outerBoxEl ? outerBoxEl.value : '10_12_48'
+    outerBox: outerBoxEl ? outerBoxEl.value : '10_12_48',
+    supervisor: supervisorEl ? supervisorEl.value : '',
+    maintenance: maintenanceEl ? maintenanceEl.value : ''
   };
 
   // Reset shift production metrics & status
@@ -1476,6 +1484,7 @@ function doneShiftStart() {
       operators: stationOps,
       pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
       outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
+      maintenance: (state.shiftConfig && state.shiftConfig.maintenance) ? state.shiftConfig.maintenance : "",
       shift_start: true
     });
   });
@@ -1789,6 +1798,8 @@ function doneShiftEnd() {
     const boxLabel = boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox;
     summaryText += `*Cup Size:* ${state.shiftConfig.cupSize} | *Qty/Pouch:* ${state.shiftConfig.pouchQty}\n`;
     summaryText += `*Box Case:* ${boxLabel}\n`;
+    if (state.shiftConfig.supervisor) summaryText += `*Supervisor:* ${state.shiftConfig.supervisor}\n`;
+    if (state.shiftConfig.maintenance) summaryText += `*Maintenance:* ${state.shiftConfig.maintenance}\n`;
   }
   summaryText += `*Total Output:* ${totalOutput.toLocaleString()} / Target: ${totalTarget.toLocaleString()}\n`;
   summaryText += `*Total Rejections:* ${totalRejections.toLocaleString()}\n`;
@@ -1971,7 +1982,9 @@ function doneShiftEnd() {
       shift: shiftName,
       cup_size: state.shiftConfig ? state.shiftConfig.cupSize : "N/A",
       pouch_qty: state.shiftConfig ? state.shiftConfig.pouchQty : 0,
-      outer_box: boxLabel
+      outer_box: boxLabel,
+      supervisor: state.shiftConfig ? state.shiftConfig.supervisor : "N/A",
+      maintenance: state.shiftConfig ? state.shiftConfig.maintenance : "N/A"
     },
     stations: stationsData,
     metrics: {
@@ -2148,6 +2161,8 @@ function updateActiveOrderStrip() {
       <span style="border-left: 1px solid var(--border-color); padding-left: 10px;"><strong style="color: var(--accent-peach);">CUP SIZE:</strong> ${state.shiftConfig.cupSize}</span>
       <span style="border-left: 1px solid var(--border-color); padding-left: 10px;"><strong style="color: var(--accent-peach);">QTY/POUCH:</strong> ${state.shiftConfig.pouchQty}</span>
       <span style="border-left: 1px solid var(--border-color); padding-left: 10px;"><strong style="color: var(--accent-peach);">BOX CASE:</strong> ${boxLabel}</span>
+      <span style="border-left: 1px solid var(--border-color); padding-left: 10px;"><strong style="color: var(--accent-peach);">SUPERVISOR:</strong> ${state.shiftConfig.supervisor || 'N/A'}</span>
+      <span style="border-left: 1px solid var(--border-color); padding-left: 10px;"><strong style="color: var(--accent-peach);">MAINTENANCE:</strong> ${state.shiftConfig.maintenance || 'N/A'}</span>
     `;
   }
   

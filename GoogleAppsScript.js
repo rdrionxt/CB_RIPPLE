@@ -143,11 +143,12 @@ function sendEmailReport(data) {
   sheet.appendRow(["Date", dateStr, "Shift", shiftName]);
   sheet.appendRow(["Cup Size", data.shift_info.cup_size, "Qty/Pouch", data.shift_info.pouch_qty]);
   sheet.appendRow(["Outer Box Case", data.shift_info.outer_box]);
+  sheet.appendRow(["Supervisor", data.shift_info.supervisor || "N/A", "Maintenance", data.shift_info.maintenance || "N/A"]);
   sheet.appendRow([]); // empty spacer row
   
   // 3. Format header block
   sheet.getRange("A1").setFontWeight("bold").setFontSize(14);
-  sheet.getRange("A2:D4").setFontWeight("bold");
+  sheet.getRange("A2:D5").setFontWeight("bold");
   
   // 4. Append station details table
   sheet.appendRow(["Station Details Table"]);
