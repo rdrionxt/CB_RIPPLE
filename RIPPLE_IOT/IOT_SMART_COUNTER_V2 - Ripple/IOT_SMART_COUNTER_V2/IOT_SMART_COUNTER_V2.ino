@@ -14,8 +14,8 @@
 /* ========================================================================== */
 
 // Choose active device here (uncomment exactly one)
-#define DEVICE_SLAVE1
-// #define DEVICE_SLAVE2
+// #define DEVICE_SLAVE1
+#define DEVICE_SLAVE2
 // #define DEVICE_SLAVE3
 // #define DEVICE_SLAVE4
 
