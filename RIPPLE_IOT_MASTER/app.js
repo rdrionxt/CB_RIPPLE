@@ -301,7 +301,7 @@ const state = {
   shiftActive: false,
   logs: [],
   breakdownLogs: [],
-  activeItemName: 'IRIS Reed Diffuser - Lavender Mist',
+  activeItemName: 'T- light candle',
   operatorName: 'SAGAR B.K',
   shiftWorkingMins: 0.0,
   shiftBreakdownMins: 0.0,

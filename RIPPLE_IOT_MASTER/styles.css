@@ -1504,3 +1504,38 @@ main.dashboard-view.overview-mode {
   filter: grayscale(0.8);
 }
 
+/* RIONXT Logo Animation in Loading Overlay */
+.rionxt-logo-svg {
+  filter: drop-shadow(0 0 15px rgba(232, 155, 126, 0.45));
+}
+
+.stylized-r-path {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: drawR 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards infinite;
+}
+
+@keyframes drawR {
+  0% {
+    stroke-dashoffset: 400;
+  }
+  70%, 100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.wave-arc {
+  opacity: 0;
+  transform-origin: 85px 60px;
+}
+
+.wave-1 { animation: pulseWave 2.2s ease-in-out 0.2s infinite; }
+.wave-2 { animation: pulseWave 2.2s ease-in-out 0.4s infinite; }
+.wave-3 { animation: pulseWave 2.2s ease-in-out 0.6s infinite; }
+
+@keyframes pulseWave {
+  0% { opacity: 0; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+

@@ -25,8 +25,13 @@
       </svg>
       <div class="brand-text">
         <h1>IRIS</h1>
-        <span>Tea light line</span>
+        <span>home fragrances</span>
       </div>
+    </div>
+
+    <!-- Centered Header Title -->
+    <div class="header-center-title" style="position: absolute; left: 50%; transform: translateX(-50%); font-size: 1.2rem; font-weight: 700; color: var(--accent-peach); letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(232, 155, 126, 0.25); font-family: var(--font-sans); white-space: nowrap; pointer-events: none;">
+      T light line -2 summary
     </div>
 
     <!-- Shift and Alert Control Buttons -->
@@ -166,8 +171,8 @@
         </svg>
       </div>
 
-      <!-- Station 2: Capping (Cupping) -->
-      <div class="flow-node" id="flow-node-capping">
+      <!-- Station 2: Cupping -->
+      <div class="flow-node" id="flow-node-cupping">
         <div class="machine-svg-wrapper">
           <svg class="flow-machine-svg" viewBox="0 0 100 100">
             <!-- Conveyor/Base -->
@@ -195,7 +200,7 @@
           </svg>
         </div>
         <div class="flow-label">
-          <h4>CAPPING STATION</h4>
+          <h4>CUPPING STATION</h4>
         </div>
       </div>
       
@@ -543,10 +548,28 @@
   <!-- Attractive Glassmorphic Sync Overlay -->
   <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner-container">
-      <div class="loading-spinner"></div>
+      <!-- RIONXT Smart OEE Brand Animated Logo -->
+      <svg class="rionxt-logo-svg" viewBox="0 0 250 150" width="200" height="120" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
+        <!-- Concentric Waves radiating from R's top loop -->
+        <g class="radiating-waves" stroke="var(--accent-peach)" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <path d="M 85,25 A 35,35 0 0,1 120,60" class="wave-arc wave-1" />
+          <path d="M 95,15 A 48,48 0 0,1 143,60" class="wave-arc wave-2" />
+          <path d="M 105,5 A 62,62 0 0,1 167,60" class="wave-arc wave-3" />
+        </g>
+        <!-- Stylized R path -->
+        <path d="M 30,75 C 50,75 55,60 55,45 C 55,25 72,20 80,35 C 88,50 65,70 45,75 C 60,75 75,75 90,85 C 98,92 105,108 105,115 M 65,75 C 62,85 58,105 48,115" 
+              stroke="var(--primary-peach)" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" class="stylized-r-path" />
+        <!-- RIONXT SMART OEE Text -->
+        <text x="120" y="80" fill="var(--text-white)" font-family="var(--font-sans)" font-weight="700" font-size="28" letter-spacing="1">RIONXT</text>
+        <text x="120" y="105" fill="var(--accent-peach)" font-family="var(--font-sans)" font-weight="600" font-size="14" letter-spacing="3">SMART OEE</text>
+      </svg>
       <div class="loading-text" id="loading-text">Synchronizing Shift Data...</div>
     </div>
   </div>
+
+  <footer style="text-align: center; padding: 15px; color: var(--text-muted); font-size: 0.75rem; border-top: 1px solid var(--border-color); background: rgba(15, 13, 12, 0.9); width: 100%; margin-top: auto; z-index: 10; font-family: var(--font-sans);">
+    powered by <strong style="color: var(--accent-peach); font-weight: 600; letter-spacing: 0.5px;">RIONXT Smart OEE</strong>
+  </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js" type="text/javascript"></script>
   <script src="app.js"></script>
