@@ -979,6 +979,7 @@ void all_led();
 void purple_led();
 
 void dwinWriteInt(uint16_t vpAddr, uint16_t value);
+void dwinWriteLong(uint16_t vpAddr, uint32_t value);
 void dwinSwitchPage(uint16_t pageId);
 void dwinWriteString(uint16_t vpAddr, const String &str, int padLen = 0);
 void updateDWINDisplay();
@@ -1689,6 +1690,23 @@ void dwinWriteInt(uint16_t vpAddr, uint16_t value) {
 }
 
 /**
+ * @brief Write 32-bit (double word) integer values back to the DWIN display over serial.
+ * @param vpAddr Variable Pointer address.
+ * @param value 32-bit integer value.
+ */
+void dwinWriteLong(uint16_t vpAddr, uint32_t value) {
+  uint8_t frame[] = {
+    0x5A, 0xA5,
+    0x07, // 7 bytes to follow
+    0x82,
+    (uint8_t)(vpAddr >> 8), (uint8_t)(vpAddr & 0xFF),
+    (uint8_t)(value >> 24), (uint8_t)((value >> 16) & 0xFF),
+    (uint8_t)((value >> 8) & 0xFF), (uint8_t)(value & 0xFF)
+  };
+  Serial1.write(frame, sizeof(frame));
+}
+
+/**
  * @brief Sends page switch command to DWIN display.
  * @param pageId Destination Page ID on display.
  */
@@ -1845,15 +1863,15 @@ void updateDWINDisplay() {
     uint16_t active_bd_mins = 0;
     if (is_shift_data_updated) {
 #if defined(DEVICE_SLAVE4)
-      active_work_mins = (uint16_t)station_working_mins[0];
-      active_bd_mins = (uint16_t)station_breakdown_mins[0];
+      active_work_mins = (uint16_t)(station_working_mins[0] * 10.0f);
+      active_bd_mins = (uint16_t)(station_breakdown_mins[0] * 10.0f);
 #else
       if (dwin_active_station_idx < MAX_STATIONS) {
-        active_work_mins = (uint16_t)station_working_mins[dwin_active_station_idx];
-        active_bd_mins = (uint16_t)station_breakdown_mins[dwin_active_station_idx];
+        active_work_mins = (uint16_t)(station_working_mins[dwin_active_station_idx] * 10.0f);
+        active_bd_mins = (uint16_t)(station_breakdown_mins[dwin_active_station_idx] * 10.0f);
       } else {
-        active_work_mins = (uint16_t)total_working_shift_mins;
-        active_bd_mins = (uint16_t)total_bd_shift_hrs;
+        active_work_mins = (uint16_t)(total_working_shift_mins * 10.0f);
+        active_bd_mins = (uint16_t)(total_bd_shift_hrs * 10.0f);
       }
 #endif
     }
@@ -1874,13 +1892,13 @@ void updateDWINDisplay() {
       act_count = (uint32_t)(station_counts[0] / inner_outer) * case_qty;
       sh_count = (uint32_t)(station_shift_counts[0] / inner_outer) * case_qty;
     }
-    dwinWriteInt(0x3030, is_shift_data_updated ? (uint16_t)act_count : 0);
-    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)bd_time : 0);
-    dwinWriteInt(0x3050, is_shift_data_updated ? (uint16_t)sh_count : 0);
+    dwinWriteLong(0x3030, is_shift_data_updated ? act_count : 0);
+    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time * 10) : 0);
+    dwinWriteLong(0x3050, is_shift_data_updated ? sh_count : 0);
 #else
-    dwinWriteInt(0x3030, is_shift_data_updated ? (uint16_t)((station_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
-    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)bd_time : 0);
-    dwinWriteInt(0x3050, is_shift_data_updated ? (uint16_t)((station_shift_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
+    dwinWriteLong(0x3030, is_shift_data_updated ? (uint32_t)((station_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
+    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time * 10) : 0);
+    dwinWriteLong(0x3050, is_shift_data_updated ? (uint32_t)((station_shift_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
 #endif
   }
 }
@@ -4716,7 +4734,7 @@ void loop() {
         bool is_st_running = (millis() - last_pulse_time_st[i] < STATION_INACTIVITY_LIMIT);
         if (is_st_running) {
           station_working_mins[i] += elapsed_mins;
-        } else if (is_major_bd) {
+        } else {
           station_breakdown_mins[i] += elapsed_mins;
         }
       }

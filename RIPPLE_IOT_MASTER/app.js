@@ -745,8 +745,8 @@ function renderActiveSlaveView() {
             <!-- Compact Shift Metadata inside card (Overview) -->
             <div class="compact-shift-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; color:var(--text-muted); border-top:1px solid rgba(245,214,198,0.08); padding-top:6px; margin-top:4px; width:100%;">
               <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%;" title="${station.operator}">Op: <strong style="color:var(--text-white); font-weight:600; font-size:1.15rem;">${station.operator}</strong></span>
-              <span>Work: <strong style="color:var(--status-running); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${Math.floor(station.workingMins)}m</strong></span>
-              <span>BD: <strong style="color:var(--status-breakdown); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${Math.floor(station.breakdownMins)}m</strong></span>
+              <span>Work: <strong style="color:var(--status-running); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${station.workingMins.toFixed(1)}m</strong></span>
+              <span>BD: <strong style="color:var(--status-breakdown); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${station.breakdownMins.toFixed(1)}m</strong></span>
             </div>
           </div>
         `;
@@ -890,11 +890,11 @@ function renderActiveSlaveView() {
           </div>
           <div class="shift-meta-item">
             <span class="shift-meta-label">Working Mins</span>
-            <span class="shift-meta-val highlight-green" id="work-mins-${station.id}">${Math.floor(station.workingMins)} Min</span>
+            <span class="shift-meta-val highlight-green" id="work-mins-${station.id}">${station.workingMins.toFixed(1)} Min</span>
           </div>
           <div class="shift-meta-item">
             <span class="shift-meta-label">Breakdown Mins</span>
-            <span class="shift-meta-val highlight-red" id="break-mins-${station.id}">${Math.floor(station.breakdownMins)} Min</span>
+            <span class="shift-meta-val highlight-red" id="break-mins-${station.id}">${station.breakdownMins.toFixed(1)} Min</span>
           </div>
         </div>
 
@@ -1121,8 +1121,8 @@ function updateGlobalStats() {
   // Update Meta Strip displays in DOM
   const workingEl = document.getElementById('shift-working-mins');
   const breakdownEl = document.getElementById('shift-breakdown-mins');
-  if (workingEl) workingEl.innerText = Math.floor(state.shiftWorkingMins) + ' Min';
-  if (breakdownEl) breakdownEl.innerText = Math.floor(state.shiftBreakdownMins) + ' Min';
+  if (workingEl) workingEl.innerText = state.shiftWorkingMins.toFixed(1) + ' Min';
+  if (breakdownEl) breakdownEl.innerText = state.shiftBreakdownMins.toFixed(1) + ' Min';
 
   // Total Output is the actual output of the final packaging unit (st-09)
   const labelingStation = findStationGlobal('st-09').station;
@@ -1835,8 +1835,8 @@ function doneShiftEnd() {
       summaryText += `📦 *Actual Output:* ${actualInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
       summaryText += `❌ *Rejections:* ${rejInt.toLocaleString()}\n`;
       summaryText += `⚡ *Avg Speed:* ${station.speed} P/M\n`;
-      summaryText += `⏳ *Working Hrs:* ${workHrs} hrs (${Math.floor(station.workingMins)}m)\n`;
-      summaryText += `⚠️ *Breakdown Hrs:* ${bdHrs} hrs (${Math.floor(station.breakdownMins)}m)\n`;
+      summaryText += `⏳ *Working Hrs:* ${workHrs} hrs (${station.workingMins.toFixed(1)}m)\n`;
+      summaryText += `⚠️ *Breakdown Hrs:* ${bdHrs} hrs (${station.breakdownMins.toFixed(1)}m)\n`;
       summaryText += `📈 *Prod. Efficiency:* ${prodEff}%\n`;
       summaryText += `⚙️ *Machine Efficiency:* ${machEff}%\n`;
       if (station.breakdownReason) {
