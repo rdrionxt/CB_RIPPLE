@@ -483,7 +483,7 @@ const PartSpeed partSpeedMap[] = {
 
 // unit - RIPPLE
 const PartSpeed partSpeedMap[] = {
-  {"T- light candle", 88}
+  {"T-light candle", 88}
 };
 
 const uint16_t PART_SPEED_COUNT = sizeof(partSpeedMap) / sizeof(partSpeedMap[0]);
@@ -573,7 +573,7 @@ const char *const partNames[] PROGMEM = {
 
 // unit - RIPPLE
 const char *const partNames[] PROGMEM = {
-  "T- light candle"
+  "T-light candle"
 };
 
 // --- Operators List ---
@@ -4074,7 +4074,7 @@ void setup() {
   if (framReadString(DEVICE_NAME_ADD).length() == 0) framWriteString(DEVICE_NAME_ADD, DEVICE_NAME_DEFAULT);
   if (framReadString(unit_name_add).length() == 0) framWriteString(unit_name_add, "RIPPLE");
   if (framReadString(operator_name_add).length() == 0) framWriteString(operator_name_add, "IFRAN");
-  if (framReadString(PART_NAME_ADD_ADDR).length() == 0) framWriteString(PART_NAME_ADD_ADDR, "T- light candle");
+  if (framReadString(PART_NAME_ADD_ADDR).length() == 0) framWriteString(PART_NAME_ADD_ADDR, "T-light candle");
 #endif
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
@@ -4125,7 +4125,7 @@ void setup() {
     shift = framReadString(shift_add);
     part_name = framReadString(PART_NAME_ADD_ADDR);
     if (part_name.length() == 0 || part_name == "") {
-      part_name = "T- light candle";
+      part_name = "T-light candle";
     }
 
     part_speed = framRead8(PART_SPEED_L_ADDR) | (framRead8(PART_SPEED_H_ADDR) << 8);

@@ -247,7 +247,7 @@ function loadStateFromLocalStorage() {
         state.shiftActive = parsed.shiftActive !== undefined ? parsed.shiftActive : false;
         state.logs = Array.isArray(parsed.logs) ? parsed.logs : [];
         state.breakdownLogs = Array.isArray(parsed.breakdownLogs) ? parsed.breakdownLogs : [];
-        state.activeItemName = parsed.activeItemName || 'IRIS Reed Diffuser - Lavender Mist';
+        state.activeItemName = parsed.activeItemName || 'T-light candle';
         state.operatorName = parsed.operatorName || 'SAGAR B.K';
         state.shiftWorkingMins = typeof parsed.shiftWorkingMins === 'number' ? parsed.shiftWorkingMins : 0.0;
         state.shiftBreakdownMins = typeof parsed.shiftBreakdownMins === 'number' ? parsed.shiftBreakdownMins : 0.0;
@@ -301,7 +301,7 @@ const state = {
   shiftActive: false,
   logs: [],
   breakdownLogs: [],
-  activeItemName: 'T- light candle',
+  activeItemName: 'T-light candle',
   operatorName: 'SAGAR B.K',
   shiftWorkingMins: 0.0,
   shiftBreakdownMins: 0.0,
