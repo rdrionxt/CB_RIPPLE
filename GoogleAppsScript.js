@@ -142,7 +142,7 @@ function sendEmailReport(data) {
   sheet.setName("Shift Summary");
   
   // Enable grid lines visibility
-  sheet.setGridlines(true);
+  sheet.setHideGridlines(false);
   
   // 2. Add Header block
   sheet.appendRow(["📋 SHIFT END PRODUCTION SUMMARY"]);
