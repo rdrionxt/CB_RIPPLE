@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IRIS Ripple IoT - Cloud OTA Manager</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
   <style>
     :root {
       --bg-dark: #0f0d0c;
@@ -380,10 +381,14 @@
         <span>🚀</span> Upload to Google Cloud OTA
       </button>
 
+      <button class="submit-btn" id="trigger-ota-btn" style="background: var(--status-running); color: white; margin-top: 10px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);">
+        <span>📡</span> Trigger OTA Update on Device
+      </button>
+
       <!-- Web App Script Configuration -->
       <div class="script-config form-group">
         <label for="script-url-input">Google Apps Script Web App URL</label>
-        <input type="text" id="script-url-input" class="input-field" style="font-size:0.7rem; font-family:var(--font-mono);" value="https://script.google.com/macros/s/AKfycbyDjECTPGJ7tbAmEK5tYV9097VapxrKPk7tDWYDgNBZ/exec">
+        <input type="text" id="script-url-input" class="input-field" style="font-size:0.7rem; font-family:var(--font-mono);" value="https://script.google.com/macros/s/AKfycby9v13iLxYlGoY-d9HaoiU-CgEBKNL4c6a2VukQTbJLtB5VBRjMxcBtDQdfs-YNEyWC/exec">
       </div>
     </div>
 
@@ -493,16 +498,21 @@
     }
 
     // Drag and drop event handlers
-    ['dragenter', 'dragover'].forEach(eventName => {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropArea.addEventListener(eventName, (e) => {
         e.preventDefault();
+        e.stopPropagation();
+      }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, () => {
         dropArea.classList.add('dragover');
       }, false);
     });
 
     ['dragleave', 'drop'].forEach(eventName => {
-      dropArea.addEventListener(eventName, (e) => {
-        e.preventDefault();
+      dropArea.addEventListener(eventName, () => {
         dropArea.classList.remove('dragover');
       }, false);
     });
@@ -628,6 +638,47 @@
       };
 
       reader.readAsDataURL(selectedFile);
+    });
+
+    const triggerOtaBtn = document.getElementById('trigger-ota-btn');
+    triggerOtaBtn.addEventListener('click', () => {
+      const deviceId = document.getElementById('slave-select').value;
+      
+      triggerOtaBtn.disabled = true;
+      addLog(`Connecting to MQTT Broker to trigger OTA on ${deviceId}...`, "info");
+      
+      const isHttps = window.location.protocol === 'https:';
+      const clientId = "ota_trigger_" + Math.random().toString(36).substring(2, 10);
+      const client = new Paho.MQTT.Client("broker.hivemq.com", Number(isHttps ? 8884 : 8000), "/mqtt", clientId);
+      
+      client.onConnectionLost = (responseObject) => {
+        if (responseObject.errorCode !== 0) {
+          addLog(`MQTT Connection lost: ${responseObject.errorMessage}`, "error");
+          triggerOtaBtn.disabled = false;
+        }
+      };
+      
+      client.connect({
+        onSuccess: () => {
+          addLog("✅ Connected to MQTT Broker via WebSockets.", "success");
+          const payload = JSON.stringify({
+            id: deviceId,
+            trigger_ota: true
+          });
+          const message = new Paho.MQTT.Message(payload);
+          message.destinationName = "CB_RN_IOT_DATA_IN";
+          client.send(message);
+          addLog(`📡 Trigger command published to 'CB_RN_IOT_DATA_IN' for device ${deviceId}`, "success");
+          client.disconnect();
+          triggerOtaBtn.disabled = false;
+        },
+        onFailure: (err) => {
+          addLog(`❌ MQTT connection failed: ${err.errorMessage}`, "error");
+          triggerOtaBtn.disabled = false;
+        },
+        useSSL: isHttps,
+        timeout: 5
+      });
     });
 
     document.addEventListener('DOMContentLoaded', () => {

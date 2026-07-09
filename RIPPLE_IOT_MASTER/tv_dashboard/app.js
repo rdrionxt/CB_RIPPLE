@@ -50,10 +50,65 @@ function handleIncomingMessage(topic, payload) {
       s.mac.toUpperCase() === idKey
     );
     if (!slave) return;
+
+    // Extract metadata from telemetry if present (e.g. from Slave 1)
+    if (data.order_no) {
+      let activeOrder = state.orders.find(o => o.active);
+      if (!activeOrder && state.orders.length > 0) {
+        activeOrder = state.orders[0];
+        activeOrder.active = true;
+      }
+      if (activeOrder) {
+        activeOrder.orderNumber = data.order_no;
+        if (data.shift && data.shift !== "---") {
+          activeOrder.shift = data.shift;
+          state.shiftActive = true;
+        }
+      }
+    }
+    if (data.part_name && data.part_name !== "(---)") {
+      state.activeItemName = data.part_name;
+    }
+    if (data.supervisor) {
+      if (!state.shiftConfig) state.shiftConfig = {};
+      state.shiftConfig.supervisor = data.supervisor;
+    }
+    if (data.pouch_qty) {
+      if (!state.shiftConfig) state.shiftConfig = {};
+      state.shiftConfig.pouchQty = parseInt(data.pouch_qty, 10) || 10;
+    }
+    if (data.outer_box) {
+      if (!state.shiftConfig) state.shiftConfig = {};
+      state.shiftConfig.outerBox = data.outer_box;
+    }
     
     // Mark the slave as Connected and track telemetry timestamp
     slave.status = "Connected";
     slave.lastTelemetryTime = Date.now();
+    
+    // If shift is active globally, check synchronization state of the slave
+    if (state.shiftActive) {
+      const activeOrder = state.orders.find(o => o.active);
+      const activeShiftName = activeOrder ? activeOrder.shift : "Shift A";
+      const slaveShiftName = data.shift || "";
+      
+      if (slaveShiftName.toUpperCase() === activeShiftName.toUpperCase()) {
+        slave.shiftAcknowledged = true;
+      } else if (!slave.shiftAcknowledged) {
+        console.log(`Auto-triggering shift start config for slave: ${slave.id}`);
+        const firstOp = slave.stations.length > 0 ? slave.stations[0].operator : state.operatorName;
+        const stationOps = slave.stations.map(st => st.operator);
+        publishDeviceConfig(slave.id, {
+          shift: activeShiftName,
+          operator: firstOp,
+          operators: stationOps,
+          pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
+          outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
+          maintenance: (state.shiftConfig && state.shiftConfig.maintenance) ? state.shiftConfig.maintenance : "",
+          shift_start: true
+        });
+      }
+    }
     
     // If stations array is present, update each station
     if (Array.isArray(data.stations)) {
@@ -76,7 +131,7 @@ function handleIncomingMessage(topic, payload) {
               const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
               station.actual = completed_boxes * case_qty;
               station.actualRaw = completed_boxes;
-              station.speed = (incomingSt.speed || 0) * qty_per_pouches;
+              station.speed = incomingSt.speed || 0;
             } else {
               const mult = getStationMultiplier(station.id);
               station.actual = incomingSt.actual * mult;
@@ -86,6 +141,9 @@ function handleIncomingMessage(topic, payload) {
             if (typeof incomingSt.workingMins === 'number') station.workingMins = incomingSt.workingMins;
             if (typeof incomingSt.breakdownMins === 'number') station.breakdownMins = incomingSt.breakdownMins;
             if (incomingSt.operator) station.operator = incomingSt.operator;
+            if (typeof incomingSt.target === 'number') station.target = incomingSt.target;
+            if (typeof incomingSt.pending === 'number') station.pending = incomingSt.pending;
+            if (typeof incomingSt.efficiency === 'number') station.efficiency = incomingSt.efficiency;
             if (incomingSt.breakdownReason !== undefined) {
               if (incomingSt.breakdownReason && incomingSt.breakdownReason !== station.breakdownReason) {
                 addBreakdownLog(station, incomingSt.breakdownReason);
@@ -209,12 +267,14 @@ function saveStateToLocalStorage() {
       shiftWorkingMins: state.shiftWorkingMins,
       shiftBreakdownMins: state.shiftBreakdownMins,
       shiftConfig: state.shiftConfig,
+      shiftStartTime: state.shiftStartTime,
       shiftReports: state.shiftReports,
       orders: state.orders,
       slaves: state.slaves.map(slave => ({
         id: slave.id,
         status: slave.status,
         lastTelemetryTime: slave.lastTelemetryTime,
+        shiftAcknowledged: slave.shiftAcknowledged,
         stations: slave.stations.map(st => ({
           id: st.id,
           target: st.target,
@@ -252,6 +312,7 @@ function loadStateFromLocalStorage() {
         state.shiftWorkingMins = typeof parsed.shiftWorkingMins === 'number' ? parsed.shiftWorkingMins : 0.0;
         state.shiftBreakdownMins = typeof parsed.shiftBreakdownMins === 'number' ? parsed.shiftBreakdownMins : 0.0;
         state.shiftConfig = parsed.shiftConfig || null;
+        state.shiftStartTime = parsed.shiftStartTime !== undefined ? parsed.shiftStartTime : null;
         state.shiftReports = Array.isArray(parsed.shiftReports) ? parsed.shiftReports : [];
         
         if (Array.isArray(parsed.orders)) {
@@ -264,6 +325,7 @@ function loadStateFromLocalStorage() {
             if (slave) {
               slave.status = savedSlave.status || 'Disconnected';
               slave.lastTelemetryTime = savedSlave.lastTelemetryTime;
+              slave.shiftAcknowledged = savedSlave.shiftAcknowledged !== undefined ? savedSlave.shiftAcknowledged : false;
               if (Array.isArray(savedSlave.stations)) {
                 savedSlave.stations.forEach(savedSt => {
                   const station = slave.stations.find(st => st.id === savedSt.id);
@@ -306,6 +368,7 @@ const state = {
   shiftWorkingMins: 0.0,
   shiftBreakdownMins: 0.0,
   shiftConfig: null,
+  shiftStartTime: null,
   shiftReports: [],
   orders: [
     { id: 'ord-01', orderNumber: 'ORD-2026-001', date: '2026-06-15', shift: 'Shift A', targetQty: 80000, active: false },
@@ -595,6 +658,14 @@ function renderSlaveSidebar() {
           <span class="pulse-dot ${isConn ? 'connected' : 'disconnected'}"></span>
           <span>Gateway: ${slave.status} ${alarmCount > 0 && isConn ? `<strong style="color: var(--status-breakdown); margin-left: 10px;">(${alarmCount} ALARM)</strong>` : ''}</span>
         </div>
+        ${state.shiftActive ? `
+        <div class="connection-indicator" style="margin-top: 4px;">
+          <span class="pulse-dot ${slave.shiftAcknowledged ? 'connected' : 'disconnected'}" style="width: 6px; height: 6px; box-shadow: none;"></span>
+          <span style="color: ${slave.shiftAcknowledged ? 'var(--status-running)' : 'var(--status-idle)'}; font-size: 0.75rem;">
+            Shift: ${slave.shiftAcknowledged ? 'Synced' : 'Waiting Sync'}
+          </span>
+        </div>
+        ` : ''}
       </li>
     `;
   }).join('');
@@ -642,6 +713,21 @@ function getStationMultiplier(stationId) {
   return 1;
 }
 
+// Calculate live machine efficiency based on linear elapsed shift time
+function calculateLiveEfficiency(station) {
+  if (typeof station.efficiency === 'number') {
+    return station.efficiency;
+  }
+  if (!state.shiftActive || !state.shiftStartTime || station.target <= 0) {
+    return 0;
+  }
+  const elapsedMinutes = (Date.now() - state.shiftStartTime) / 60000;
+  const activeMins = Math.min(480, Math.max(1, elapsedMinutes));
+  const expectedTargetSoFar = (station.target / 480) * activeMins;
+  if (expectedTargetSoFar <= 0) return 0;
+  return Math.min(100, Math.round((station.actual / expectedTargetSoFar) * 100));
+}
+
 // Render Main active slave view area
 function renderActiveSlaveView() {
   const gridEl = document.getElementById('machine-grid');
@@ -654,7 +740,7 @@ function renderActiveSlaveView() {
     document.body.classList.add('overview-mode-active');
     mainViewEl.classList.add('overview-mode');
     gridEl.classList.add('overview-mode');
-    gridEl.classList.remove('single-station-view');
+    gridEl.classList.remove('single-station-view', 'stations-count-2', 'stations-count-3');
 
     document.getElementById('active-slave-name').innerText = "All Stations Overview";
     document.getElementById('active-slave-meta').innerText = "Master telemetry monitor | 4 Slaves Node Cluster";
@@ -667,8 +753,8 @@ function renderActiveSlaveView() {
       const isSlaveConnected = slave.status === 'Connected';
       
       slave.stations.forEach(station => {
-        const pending = Math.max(0, station.target - station.actual);
-        const efficiency = station.target > 0 ? Math.min(100, Math.round((station.actual / station.target) * 100)) : 0;
+        const pending = typeof station.pending === 'number' ? station.pending : Math.max(0, station.target - station.actual);
+        const efficiency = calculateLiveEfficiency(station);
         
         let statClass = 'running';
         if (station.status === 'Idle') statClass = 'idle';
@@ -726,7 +812,7 @@ function renderActiveSlaveView() {
                 <span class="metric-label">Speed</span>
                 <div class="speed-value-container">
                   <span class="speed-value" id="speed-${station.id}">${finalSpeed}</span>
-                  <span class="speed-unit">P/M</span>
+                  <span class="speed-unit">${station.id === 'st-10' ? 'B/M' : 'P/M'}</span>
                 </div>
               </div>
             </div>
@@ -743,8 +829,8 @@ function renderActiveSlaveView() {
             </div>
 
             <!-- Compact Shift Metadata inside card (Overview) -->
-            <div class="compact-shift-meta" style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; color:var(--text-muted); border-top:1px solid rgba(245,214,198,0.08); padding-top:6px; margin-top:4px; width:100%;">
-              <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%;" title="${station.operator}">Op: <strong style="color:var(--text-white); font-weight:600; font-size:1.15rem;">${station.operator}</strong></span>
+            <div class="compact-shift-meta" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px 8px; font-size:1.1rem; color:var(--text-muted); border-top:1px solid rgba(245,214,198,0.08); padding-top:6px; margin-top:4px; width:100%;">
+              <span style="font-weight: 500; min-width: fit-content;" title="${station.operator}">Op: <strong style="color:var(--text-white); font-weight:600; font-size:1.15rem;">${station.operator}</strong></span>
               <span>Work: <strong style="color:var(--status-running); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${station.workingMins.toFixed(1)}m</strong></span>
               <span>BD: <strong style="color:var(--status-breakdown); font-family:var(--font-mono); font-weight:600; font-size:1.3rem;">${station.breakdownMins.toFixed(1)}m</strong></span>
             </div>
@@ -773,6 +859,12 @@ function renderActiveSlaveView() {
   } else {
     gridEl.classList.remove('single-station-view');
   }
+  gridEl.classList.remove('stations-count-2', 'stations-count-3');
+  if (activeSlave.stations.length === 2) {
+    gridEl.classList.add('stations-count-2');
+  } else if (activeSlave.stations.length === 3) {
+    gridEl.classList.add('stations-count-3');
+  }
 
   const displayName = activeSlave.name.includes(':') ? activeSlave.name.split(':')[1].trim() : activeSlave.name;
   document.getElementById('active-slave-name').innerText = `${displayName} Monitoring`;
@@ -789,8 +881,8 @@ function renderActiveSlaveView() {
   }
 
   gridEl.innerHTML = activeSlave.stations.map(station => {
-    const pending = Math.max(0, station.target - station.actual);
-    const efficiency = station.target > 0 ? Math.min(100, Math.round((station.actual / station.target) * 100)) : 0;
+    const pending = typeof station.pending === 'number' ? station.pending : Math.max(0, station.target - station.actual);
+    const efficiency = calculateLiveEfficiency(station);
     
     let statClass = 'running';
     if (station.status === 'Idle') statClass = 'idle';
@@ -852,7 +944,7 @@ function renderActiveSlaveView() {
             <span class="metric-label">Station Speed</span>
             <div class="speed-value-container">
               <span class="speed-value" id="speed-${station.id}">${finalSpeed}</span>
-              <span class="speed-unit">P/M</span>
+              <span class="speed-unit">${station.id === 'st-10' ? 'B/M' : 'P/M'}</span>
             </div>
           </div>
         </div>
@@ -1454,11 +1546,14 @@ function doneShiftStart() {
 
   // Reset shift production metrics & status
   state.shiftActive = true;
+  state.shiftStartTime = Date.now();
   state.shiftWorkingMins = 0;
   state.shiftBreakdownMins = 0;
   state.breakdownLogs = [];
+  saveStateToLocalStorage();
 
   state.slaves.forEach(slave => {
+    slave.shiftAcknowledged = false;
     slave.stations.forEach(station => {
       station.actual = 0;
       station.actualRaw = 0;
@@ -1480,8 +1575,12 @@ function doneShiftStart() {
     const stationOps = slave.stations.map(st => st.operator);
     publishDeviceConfig(slave.id, {
       shift: shiftName,
+      order_no: activeOrder ? activeOrder.orderNumber : "",
+      part_name: state.activeItemName || "T-light candle",
+      supervisor: (state.shiftConfig && state.shiftConfig.supervisor) ? state.shiftConfig.supervisor : "",
       operator: firstOp,
       operators: stationOps,
+      targets: slave.stations.map(st => st.target),
       pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
       outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
       maintenance: (state.shiftConfig && state.shiftConfig.maintenance) ? state.shiftConfig.maintenance : "",
@@ -1549,6 +1648,16 @@ function closeAISuggestionsModal() {
   document.getElementById('ai-suggestions-modal').classList.remove('open');
 }
 
+function escapeMarkdown(val) {
+  if (val === undefined || val === null) return "";
+  return String(val)
+    .replace(/_/g, '\\_')
+    .replace(/\*/g, '\\*')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/\`/g, '\\`');
+}
+
 function sendTelegramSummary(messageText) {
   const token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
   const chatId = "-5005894782";
@@ -1582,7 +1691,7 @@ function sendTelegramSummary(messageText) {
 }
 
 function sendEmailReportViaAppsScript(emailData) {
-  const url = "https://script.google.com/macros/s/AKfycbyDjECTPGJ7tbAmEK5tYV9097VapxrKPk7tDWYDgNBZ/exec";
+  const url = "https://script.google.com/macros/s/AKfycby9v13iLxYlGoY-d9HaoiU-CgEBKNL4c6a2VukQTbJLtB5VBRjMxcBtDQdfs-YNEyWC/exec";
   
   fetch(url, {
     method: "POST",
@@ -1700,6 +1809,92 @@ function generateAISuggestions(currentReport, historicalReports) {
     }
   }
 
+  // 1. Identify best operator based on production efficiency
+  let bestOp = null;
+  let bestOpEff = -1;
+  let bestOpStation = "";
+  currentReport.stations.forEach(st => {
+    if (st.target > 0 && st.prod_efficiency > bestOpEff && st.operator) {
+      bestOpEff = st.prod_efficiency;
+      bestOp = st.operator;
+      bestOpStation = st.name;
+    }
+  });
+  if (bestOp && bestOpEff > 0) {
+    suggestions.push({
+      category: "Best Operator of the Shift",
+      icon: "👤",
+      impact: "Positive",
+      impactColor: "var(--status-running)",
+      detail: `Operator ${bestOp} at ${bestOpStation} maintained the best production efficiency of ${bestOpEff}% in this shift. Recognize their high performance!`,
+      basis: `Highest production efficiency among all active stations`
+    });
+  }
+
+  // 2. Identify best performing station (highest efficiency to breakdown ratio)
+  let bestStation = null;
+  let bestStationScore = -1;
+  currentReport.stations.forEach(st => {
+    if (st.target > 0) {
+      const bdMins = st.breakdown_hrs * 60;
+      const score = st.prod_efficiency - (bdMins * 0.5);
+      if (score > bestStationScore) {
+        bestStationScore = score;
+        bestStation = st;
+      }
+    }
+  });
+  if (bestStation) {
+    suggestions.push({
+      category: "Best Performing Station",
+      icon: "⭐",
+      impact: "Positive",
+      impactColor: "var(--status-running)",
+      detail: `Station ${bestStation.name} performed exceptionally well, achieving ${bestStation.prod_efficiency}% efficiency with ${bestStation.actual.toLocaleString()} output and only ${(bestStation.breakdown_hrs * 60).toFixed(0)} minutes of breakdown.`,
+      basis: `Highest efficiency-to-downtime ratio`
+    });
+  }
+
+  // 3. Analyze repeated breakdowns and prescribe solutions
+  const currentBreakdowns = currentReport.breakdownLogs || [];
+  if (currentBreakdowns.length > 0 && historicalReports && historicalReports.length > 0) {
+    const historyLogCounts = {};
+    historicalReports.forEach(r => {
+      const pastLogs = r.breakdownLogs || [];
+      pastLogs.forEach(log => {
+        const key = `${(log.stationId || "").toUpperCase()}||${(log.reason || "").toUpperCase()}`;
+        historyLogCounts[key] = (historyLogCounts[key] || 0) + 1;
+      });
+    });
+
+    currentBreakdowns.forEach(log => {
+      const key = `${(log.stationId || "").toUpperCase()}||${(log.reason || "").toUpperCase()}`;
+      const count = historyLogCounts[key] || 0;
+      if (count >= 1) {
+        let solution = "Conduct a root cause analysis (RCA) and check for component wear or loose connections.";
+        const reasonLower = log.reason.toLowerCase();
+        if (reasonLower.includes("mould") || reasonLower.includes("pin") || reasonLower.includes("cupping")) {
+          solution = "Replace the guide pins, verify brass bushings tolerance, and recalibrate the locking alignment.";
+        } else if (reasonLower.includes("motor") || reasonLower.includes("conveyor")) {
+          solution = "Replace the conveyor motor brushes/gearbox, check bearing play, and ensure belt tension is within limits.";
+        } else if (reasonLower.includes("sensor") || reasonLower.includes("miss")) {
+          solution = "Relocate the sensor away from dust/vibration, check for shielded cabling to avoid EMF noise, or replace the photo-reflective sensor.";
+        } else if (reasonLower.includes("jam")) {
+          solution = "Adjust guide rails clearance, check feed hopper gating, and ensure feed materials conform to sizing specifications.";
+        }
+        
+        suggestions.push({
+          category: `Recurring Breakdown - ${log.stationName}`,
+          icon: "🚨",
+          impact: "Critical",
+          impactColor: "var(--status-breakdown)",
+          detail: `Breakdown "${log.reason}" has occurred ${count + 1} times in recent shifts at ${log.stationName}. SOLUTION: ${solution}`,
+          basis: `Breakdown matches recurring pattern in historical shift logs`
+        });
+      }
+    });
+  }
+
   if (suggestions.length === 0) {
     suggestions.push({
       category: "Standard Line Maintenance",
@@ -1785,7 +1980,7 @@ function doneShiftEnd() {
   // Construct complete shift end message text
   let summaryText = `*📋 SHIFT END PRODUCTION SUMMARY*\n`;
   summaryText += `----------------------------------\n`;
-  summaryText += `*Date:* ${orderDate} | *Shift:* ${shiftName}\n`;
+  summaryText += `*Date:* ${escapeMarkdown(orderDate)} | *Shift:* ${escapeMarkdown(shiftName)}\n`;
   if (state.shiftConfig) {
     const boxLabels = {
       "10_12_48": "pouch: 10, inner: 12, outer: 48",
@@ -1796,10 +1991,10 @@ function doneShiftEnd() {
       "100_4_8": "pouch: 100, inner: 4, outer: 8"
     };
     const boxLabel = boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox;
-    summaryText += `*Cup Size:* ${state.shiftConfig.cupSize} | *Qty/Pouch:* ${state.shiftConfig.pouchQty}\n`;
-    summaryText += `*Box Case:* ${boxLabel}\n`;
-    if (state.shiftConfig.supervisor) summaryText += `*Supervisor:* ${state.shiftConfig.supervisor}\n`;
-    if (state.shiftConfig.maintenance) summaryText += `*Maintenance:* ${state.shiftConfig.maintenance}\n`;
+    summaryText += `*Cup Size:* ${escapeMarkdown(state.shiftConfig.cupSize)} | *Qty/Pouch:* ${state.shiftConfig.pouchQty}\n`;
+    summaryText += `*Box Case:* ${escapeMarkdown(boxLabel)}\n`;
+    if (state.shiftConfig.supervisor) summaryText += `*Supervisor:* ${escapeMarkdown(state.shiftConfig.supervisor)}\n`;
+    if (state.shiftConfig.maintenance) summaryText += `*Maintenance:* ${escapeMarkdown(state.shiftConfig.maintenance)}\n`;
   }
   summaryText += `*Total Output:* ${totalOutput.toLocaleString()} / Target: ${totalTarget.toLocaleString()}\n`;
   summaryText += `*Total Rejections:* ${totalRejections.toLocaleString()}\n`;
@@ -1829,18 +2024,18 @@ function doneShiftEnd() {
       const workHrs = (station.workingMins / 60).toFixed(2);
       const bdHrs = (station.breakdownMins / 60).toFixed(2);
 
-      summaryText += `*Station: ${station.name} (${station.id})*\n`;
-      summaryText += `👤 *Operator:* ${station.operator}\n`;
+      summaryText += `*Station: ${escapeMarkdown(station.name)} (${escapeMarkdown(station.id)})*\n`;
+      summaryText += `👤 *Operator:* ${escapeMarkdown(station.operator)}\n`;
       summaryText += `🎯 *Target Count:* ${targetInt.toLocaleString()}\n`;
       summaryText += `📦 *Actual Output:* ${actualInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
       summaryText += `❌ *Rejections:* ${rejInt.toLocaleString()}\n`;
-      summaryText += `⚡ *Avg Speed:* ${station.speed} P/M\n`;
+      summaryText += `⚡ *Avg Speed:* ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
       summaryText += `⏳ *Working Hrs:* ${workHrs} hrs (${station.workingMins.toFixed(1)}m)\n`;
       summaryText += `⚠️ *Breakdown Hrs:* ${bdHrs} hrs (${station.breakdownMins.toFixed(1)}m)\n`;
       summaryText += `📈 *Prod. Efficiency:* ${prodEff}%\n`;
       summaryText += `⚙️ *Machine Efficiency:* ${machEff}%\n`;
       if (station.breakdownReason) {
-        summaryText += `🚨 *BD Reason:* ${station.breakdownReason}\n`;
+        summaryText += `🚨 *BD Reason:* ${escapeMarkdown(station.breakdownReason)}\n`;
       }
       summaryText += `----------------------------------\n\n`;
     });
@@ -1867,7 +2062,7 @@ function doneShiftEnd() {
     summaryText += `No breakdowns logged in this shift.\n`;
   } else {
     logs.forEach(log => {
-      summaryText += `• [${log.timestamp}] *${log.stationName}:* ${log.reason} (${log.bdMins} min)\n`;
+      summaryText += `• [${escapeMarkdown(log.timestamp)}] *${escapeMarkdown(log.stationName)}:* ${escapeMarkdown(log.reason)} (${log.bdMins} min)\n`;
     });
   }
   summaryText += `----------------------------------\n`;
@@ -1948,8 +2143,8 @@ function doneShiftEnd() {
   summaryText += `\n*✨ AI PRODUCTION RECOMMENDATIONS*\n`;
   summaryText += `----------------------------------\n`;
   aiSuggestions.forEach(s => {
-    summaryText += `${s.icon} *[${s.category}]* (Impact: ${s.impact})\n`;
-    summaryText += `• Suggestion: ${s.detail}\n`;
+    summaryText += `${s.icon} *[${escapeMarkdown(s.category)}]* (Impact: ${escapeMarkdown(s.impact)})\n`;
+    summaryText += `• Suggestion: ${escapeMarkdown(s.detail)}\n`;
   });
   summaryText += `----------------------------------\n`;
 

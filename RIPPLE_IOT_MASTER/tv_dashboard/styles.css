@@ -1528,3 +1528,336 @@ main.dashboard-view.overview-mode {
   }
 }
 
+/* ==========================================
+   52" TV Display Layout Optimizations
+   ========================================== */
+
+/* Hide process flow track at bottom and speed telemetry panels */
+.process-flow-container {
+  display: none !important;
+}
+
+.speed-panel {
+  display: none !important;
+}
+
+/* Scale dashboard for TVs and Large screens */
+@media screen and (min-width: 1200px) {
+  /* Increase card grid cell size and spacing */
+  .tv-dashboard .machine-grid {
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)) !important;
+    gap: 2rem !important;
+  }
+  
+  .tv-dashboard .machine-card {
+    padding: 2.2rem !important;
+    gap: 1.8rem !important;
+  }
+  
+  .tv-dashboard .machine-title {
+    font-size: 1.8rem !important;
+  }
+  
+  .tv-dashboard .status-badge {
+    font-size: 1rem !important;
+    padding: 6px 12px !important;
+  }
+  
+  /* Make metric labels and values extremely large and readable */
+  .tv-dashboard .metric-label {
+    font-size: 1rem !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .tv-dashboard .metric-num {
+    font-size: 3.5rem !important;
+  }
+  
+  .tv-dashboard .speed-value {
+    font-size: 3.5rem !important;
+  }
+  
+  .tv-dashboard .speed-unit {
+    font-size: 1.25rem !important;
+  }
+  
+  .tv-dashboard .efficiency-percent {
+    font-size: 2.5rem !important;
+  }
+  
+  .tv-dashboard .efficiency-label {
+    font-size: 1.1rem !important;
+  }
+  
+  .tv-dashboard .progress-bar-bg {
+    height: 14px !important;
+  }
+  
+  /* Operator and working/breakdown mins vertical stacks */
+  .tv-dashboard .compact-shift-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding-top: 16px !important;
+    margin-top: 12px !important;
+    border-top: 1px solid rgba(245, 214, 198, 0.08) !important;
+    width: 100% !important;
+  }
+  
+  .tv-dashboard .compact-shift-meta span {
+    max-width: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 2rem !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  .tv-dashboard .compact-shift-meta strong {
+    font-size: 2.2rem !important;
+  }
+  
+  /* Top Header scaling */
+  .tv-dashboard header {
+    padding: 1.5rem 2.5rem !important;
+  }
+  
+  .tv-dashboard .brand-text h1 {
+    font-size: 2.2rem !important;
+  }
+  
+  .tv-dashboard .brand-text span {
+    font-size: 1rem !important;
+  }
+  
+  .tv-dashboard .header-center-title {
+    font-size: 2rem !important;
+  }
+  
+  /* Global KPIs scaling */
+  .tv-dashboard .stat-label {
+    font-size: 1.1rem !important;
+  }
+  
+  .tv-dashboard .stat-value {
+    font-size: 2.4rem !important;
+  }
+  
+  .tv-dashboard .stat-value.highlight {
+    font-size: 2.4rem !important;
+  }
+  
+  .tv-dashboard #live-time {
+    font-size: 2.2rem !important;
+  }
+  
+  /* Active Order metadata strip styling */
+  .tv-dashboard .meta-strip {
+    font-size: 1.8rem !important;
+    padding: 16px 2.5rem !important;
+    flex-wrap: wrap !important;
+    gap: 15px 30px !important;
+    height: auto !important;
+    position: relative !important;
+    top: 0 !important;
+  }
+  
+  .tv-dashboard #active-order-strip {
+    flex-wrap: wrap !important;
+    gap: 10px 20px !important;
+  }
+  
+  .tv-dashboard .meta-strip span,
+  .tv-dashboard .meta-strip strong,
+  .tv-dashboard #active-item-name {
+    font-size: 1.8rem !important;
+  }
+  
+  /* Sidebar status font size */
+  .tv-dashboard .sidebar-title {
+    font-size: 0.95rem !important;
+  }
+  
+  .tv-dashboard .slave-name {
+    font-size: 1.1rem !important;
+  }
+  
+  .tv-dashboard .slave-meta {
+    font-size: 0.85rem !important;
+  }
+  
+  .tv-dashboard .metric-sub-label {
+    font-size: 1.4rem !important;
+    margin-top: 6px !important;
+  }
+
+  /* 3 Stations View (Pressing & Cupping, Cupping Station) - Very Big */
+  .tv-dashboard .machine-grid.stations-count-3 {
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)) !important;
+    gap: 2.2rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card {
+    padding: 2.4rem !important;
+    gap: 2rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .machine-title {
+    font-size: 2.5rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .status-badge {
+    font-size: 1.5rem !important;
+    padding: 10px 18px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .metric-label {
+    font-size: 1.4rem !important;
+    margin-bottom: 10px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .metric-num {
+    font-size: 6rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-value {
+    font-size: 6rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-unit {
+    font-size: 1.5rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .efficiency-percent {
+    font-size: 3.8rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .efficiency-label {
+    font-size: 1.4rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .progress-bar-bg {
+    height: 18px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .metric-sub-label {
+    font-size: 1.8rem !important;
+    margin-top: 8px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .card-shift-meta {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding-top: 18px !important;
+    margin-top: 14px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .shift-meta-item {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding: 12px 20px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .shift-meta-label {
+    font-size: 1.4rem !important;
+    margin-bottom: 0 !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-3 .shift-meta-val {
+    font-size: 2rem !important;
+  }
+
+  /* 2 Stations View (Pouching/Sealing, Labelling/Box Packing) - Even Bigger */
+  .tv-dashboard .machine-grid.stations-count-2 {
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
+    gap: 3.5rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card {
+    padding: 3.2rem !important;
+    gap: 2.5rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .machine-title {
+    font-size: 3.2rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .status-badge {
+    font-size: 1.8rem !important;
+    padding: 12px 22px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .metric-label {
+    font-size: 1.8rem !important;
+    margin-bottom: 14px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .metric-num {
+    font-size: 8rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-value {
+    font-size: 8rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-unit {
+    font-size: 2.2rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .efficiency-percent {
+    font-size: 5rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .efficiency-label {
+    font-size: 1.8rem !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .progress-bar-bg {
+    height: 24px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .metric-sub-label {
+    font-size: 2.4rem !important;
+    margin-top: 10px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .card-shift-meta {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding-top: 22px !important;
+    margin-top: 18px !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .shift-meta-item {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding: 16px 26px !important;
+    border-radius: var(--radius-md) !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .shift-meta-label {
+    font-size: 1.8rem !important;
+    margin-bottom: 0 !important;
+  }
+  
+  .tv-dashboard .machine-grid.stations-count-2 .shift-meta-val {
+    font-size: 2.5rem !important;
+  }
+}
+
+/* PC Dashboard layout support (No sidebar) */
+.pc-dashboard .dashboard-container {
+  display: block !important;
+}
+
+.pc-dashboard aside.sidebar {
+  display: none !important;
+}
+
+
