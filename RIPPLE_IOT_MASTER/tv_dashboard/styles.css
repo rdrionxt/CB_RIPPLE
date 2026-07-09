@@ -1570,11 +1570,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .metric-num {
-    font-size: 3.5rem !important;
+    font-size: 2.8rem !important;
   }
   
   .tv-dashboard .speed-value {
-    font-size: 3.5rem !important;
+    font-size: 2.8rem !important;
   }
   
   .tv-dashboard .speed-unit {
@@ -1691,8 +1691,8 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .metric-sub-label {
-    font-size: 1.4rem !important;
-    margin-top: 6px !important;
+    font-size: 1rem !important;
+    margin-top: 4px !important;
   }
 
   /* 3 Stations View (Pressing & Cupping, Cupping Station) - Very Big */
@@ -1709,6 +1709,15 @@ main.dashboard-view.overview-mode {
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .machine-title {
     font-size: 2.5rem !important;
   }
+
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .metrics-row {
+    gap: 1.5rem !important;
+  }
+
+  .tv-dashboard .machine-grid.stations-count-3 .machine-card .metric-box {
+    padding: 16px 20px !important;
+    border-radius: var(--radius-md) !important;
+  }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .status-badge {
     font-size: 1.5rem !important;
@@ -1721,11 +1730,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .metric-num {
-    font-size: 6rem !important;
+    font-size: 3.2rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-value {
-    font-size: 6rem !important;
+    font-size: 3.2rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-unit {
@@ -1745,8 +1754,8 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .metric-sub-label {
-    font-size: 1.8rem !important;
-    margin-top: 8px !important;
+    font-size: 1.2rem !important;
+    margin-top: 6px !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .card-shift-meta {
@@ -1786,6 +1795,15 @@ main.dashboard-view.overview-mode {
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .machine-title {
     font-size: 3.2rem !important;
   }
+
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .metrics-row {
+    gap: 2rem !important;
+  }
+
+  .tv-dashboard .machine-grid.stations-count-2 .machine-card .metric-box {
+    padding: 20px 24px !important;
+    border-radius: var(--radius-md) !important;
+  }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .status-badge {
     font-size: 1.8rem !important;
@@ -1798,11 +1816,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .metric-num {
-    font-size: 8rem !important;
+    font-size: 4.2rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-value {
-    font-size: 8rem !important;
+    font-size: 4.2rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-unit {
@@ -1822,8 +1840,8 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .metric-sub-label {
-    font-size: 2.4rem !important;
-    margin-top: 10px !important;
+    font-size: 1.4rem !important;
+    margin-top: 6px !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .card-shift-meta {
