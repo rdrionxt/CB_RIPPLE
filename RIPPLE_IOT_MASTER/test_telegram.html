@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Report Tester</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f0d0c;
+      --bg-panel: rgba(26, 22, 20, 0.65);
+      --accent-peach: #e89b7e;
+      --primary-peach: #f5d6c6;
+      --text-white: #faf8f7;
+      --text-muted: #b5a8a3;
+      --border-color: rgba(245, 214, 198, 0.12);
+      --radius-md: 12px;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-white);
+      font-family: 'Outfit', sans-serif;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 {
+      margin-top: 0;
+      color: var(--primary-peach);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--accent-peach);
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-white);
+      padding: 12px;
+      font-family: 'JetBrains+Mono', monospace;
+      font-size: 0.9rem;
+      outline: none;
+      resize: vertical;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
+    button {
+      background: var(--accent-peach);
+      color: var(--bg-dark);
+      border: none;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .response-box {
+      margin-top: 24px;
+      background: #000;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      font-family: 'JetBrains+Mono', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      display: none;
+      color: #38bdf8;
+    }
+    .response-box.success {
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+    .response-box.error {
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Telegram Report Tester</h2>
+    <p>Use this utility to test your Google Sheets Web App connection and verify if the Telegram report is received.</p>
+    
+    <label for="web-app-url">Google Apps Script Web App URL</label>
+    <textarea id="web-app-url" style="height: 60px;">https://script.google.com/macros/s/AKfycby9v13iLxYlGoY-d9HaoiU-CgEBKNL4c6a2VukQTbJLtB5VBRjMxcBtDQdfs-YNEyWC/exec</textarea>
+
+    <label for="telegram-text">Telegram HTML Message Text</label>
+    <textarea id="telegram-text"><b>📋 SHIFT END TEST REPORT</b>
+----------------------------------
+<b>Status:</b> Success
+<b>Message:</b> Test triggered from local utility tool.
+<b>OEE:</b> 98%
+----------------------------------</textarea>
+
+    <button id="send-btn" onclick="sendTestReport()">Send Test Report</button>
+    
+    <div id="response" class="response-box"></div>
+  </div>
+
+  <script>
+    async function sendTestReport() {
+      const url = document.getElementById('web-app-url').value.trim();
+      const text = document.getElementById('telegram-text').value;
+      const btn = document.getElementById('send-btn');
+      const respBox = document.getElementById('response');
+      
+      btn.disabled = true;
+      btn.innerText = 'Sending...';
+      respBox.style.display = 'block';
+      respBox.className = 'response-box';
+      respBox.innerText = 'Sending POST request to Google Apps Script...';
+      
+      const payload = {
+        action: "send_email_report",
+        telegram_text: text,
+        shift_info: {
+          date: new Date().toISOString().split('T')[0],
+          shift: "Shift A",
+          cup_size: "9mm",
+          pouch_qty: 10,
+          outer_box: "10_12_48",
+          supervisor: "Test Supervisor",
+          maintenance: "None"
+        },
+        stations: [
+          { id: "st-01", name: "Test Pressing", operator: "Test Op", target: 50000, actual: 48000, rejections: 100, net: 47900, speed: 65, working_hrs: 7.5, breakdown_hrs: 0.5, prod_efficiency: 96, machine_efficiency: 93, bd_reason: "" }
+        ],
+        metrics: {
+          availability: 93.3,
+          performance: 96.0,
+          overall_prod_eff: 95.8,
+          overall_mach_eff: 93.3,
+          overall_oee: 92
+        }
+      };
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          respBox.className = 'response-box success';
+          respBox.innerText = `Success!\nResponse from Google Script:\n${JSON.stringify(data, null, 2)}`;
+        } else {
+          respBox.className = 'response-box error';
+          respBox.innerText = `Error returned from Google Script:\n${JSON.stringify(data, null, 2)}`;
+        }
+      } catch (err) {
+        respBox.className = 'response-box error';
+        respBox.innerText = `Network Error (Could not reach Google Apps Script):\n${err.message}\n\nNote: If you get a CORS block in console, check if the deployment was compiled correctly.`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Send Test Report';
+      }
+    }
+  </script>
+
+</body>
+</html>
