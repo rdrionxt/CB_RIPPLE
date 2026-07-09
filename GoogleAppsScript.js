@@ -100,9 +100,15 @@ function doPost(e) {
     // Check if the request is to email the Excel shift summary
     if (data && data.action === "send_email_report") {
       sendEmailReport(data);
+      
+      // Dispatch Telegram report via server-side Apps Script if text is supplied
+      if (data.telegram_text) {
+        sendTelegramReport(data.telegram_text);
+      }
+      
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Email dispatched successfully"
+        message: "Email and Telegram dispatched successfully"
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -245,4 +251,34 @@ function sendEmailReport(data) {
   
   // 8. Delete the temporary spreadsheet to avoid space clutter in Google Drive
   DriveApp.getFileById(ss.getId()).setTrashed(true);
+}
+
+/**
+ * Sends a HTML message to Telegram channel using UrlFetchApp.
+ * This runs server-side on Google servers, bypassing factory network firewalls and CORS blocks.
+ */
+function sendTelegramReport(messageText) {
+  var token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
+  var chatId = "-5005894782";
+  var url = "https://api.telegram.org/bot" + token + "/sendMessage";
+  
+  var payload = {
+    "chat_id": chatId,
+    "text": messageText,
+    "parse_mode": "HTML"
+  };
+  
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+  
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    console.log("Telegram Response: " + response.getContentText());
+  } catch (error) {
+    console.error("Telegram Error: " + error.toString());
+  }
 }

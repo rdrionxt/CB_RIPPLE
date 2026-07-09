@@ -2170,6 +2170,7 @@ function doneShiftEnd() {
   const emailData = {
     action: "send_email_report",
     email: "riontechnologies2021@gmail.com",
+    telegram_text: summaryText, // Triggers server-side Telegram post via Apps Script
     shift_info: {
       date: orderDate,
       shift: shiftName,
@@ -2190,11 +2191,8 @@ function doneShiftEnd() {
     ai_suggestions: aiSuggestions.map(s => `[${s.category}] ${s.detail}`).join('\n')
   };
 
-  // Dispatch the email request
+  // Dispatch the email request (which now also sends the Telegram notification server-side)
   sendEmailReportViaAppsScript(emailData);
-
-  // Send the consolidated report to Telegram API
-  sendTelegramSummary(summaryText);
 
   // Open the AI suggestions popup modal dialog
   document.getElementById('ai-suggestions-modal').classList.add('open');
