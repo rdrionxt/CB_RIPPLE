@@ -150,7 +150,7 @@ function sendEmailReport(data) {
   sheet.appendRow(["Cup Size", data.shift_info.cup_size, "Qty/Pouch", data.shift_info.pouch_qty]);
   sheet.appendRow(["Outer Box Case", data.shift_info.outer_box]);
   sheet.appendRow(["Supervisor", data.shift_info.supervisor || "N/A", "Maintenance", data.shift_info.maintenance || "N/A"]);
-  sheet.appendRow([]); // empty spacer row
+  sheet.appendRow([""]); // empty spacer row
   
   // 3. Format header block
   sheet.getRange("A1").setFontWeight("bold").setFontSize(14);
@@ -194,7 +194,7 @@ function sendEmailReport(data) {
     });
   }
   
-  sheet.appendRow([]); // Spacer row
+  sheet.appendRow([""]); // Spacer row
   
   // 5. Append Overall KPI block
   sheet.appendRow(["🏆 OVERALL PERFORMANCE INDICATORS"]);
