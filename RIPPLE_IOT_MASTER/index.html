@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS IoT OEE Monitoring Portal</title>
+  <meta name="description" content="Industrial IoT HMI and OEE Monitoring Dashboards for Ripple Fragrances. Select between the TV Display and PC Monitor views.">
+  
+  <!-- Google Fonts: Outfit for sleek modern headers -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #0f0d0c;
+      --bg-panel: rgba(26, 22, 20, 0.65);
+      --bg-panel-hover: rgba(36, 30, 27, 0.85);
+      --border-color: rgba(245, 214, 198, 0.12);
+      --border-color-hover: rgba(245, 214, 198, 0.3);
+      --primary-peach: #f5d6c6;
+      --accent-peach: #e89b7e;
+      --text-white: #faf8f7;
+      --text-muted: #b5a8a3;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      --shadow-glow: 0 0 30px rgba(232, 155, 126, 0.08);
+      --shadow-glow-hover: 0 0 40px rgba(232, 155, 126, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(232, 155, 126, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(232, 155, 126, 0.04) 0%, transparent 50%);
+      color: var(--text-white);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glowing Orbs */
+    .glow-orb {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(232, 155, 126, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(40px);
+    }
+    .glow-orb-1 { top: -100px; left: -100px; }
+    .glow-orb-2 { bottom: -100px; right: -100px; }
+
+    header {
+      width: 100%;
+      max-width: 1200px;
+      padding: 40px 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .brand-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .brand-logo-svg {
+      width: 72px;
+      height: 55px;
+      fill: var(--primary-peach);
+      filter: drop-shadow(0 0 10px rgba(245, 214, 198, 0.35));
+      animation: pulseLogo 3s ease-in-out infinite alternate;
+    }
+
+    .brand-text h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--text-white);
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+
+    .brand-text span {
+      font-size: 0.9rem;
+      color: var(--accent-peach);
+      letter-spacing: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .header-tag {
+      background: rgba(232, 155, 126, 0.1);
+      border: 1px solid rgba(232, 155, 126, 0.2);
+      color: var(--accent-peach);
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .portal-main {
+      flex: 1;
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 24px 60px;
+      z-index: 10;
+    }
+
+    .portal-title-block {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .portal-title-block h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--text-white);
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text-white) 30%, var(--primary-peach) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .portal-title-block p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .portal-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    @media (min-width: 768px) {
+      .portal-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .portal-card {
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-glow);
+      cursor: pointer;
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(232, 155, 126, 0.03) 0%, transparent 100%);
+      opacity: 0;
+      transition: var(--transition-smooth);
+    }
+
+    .portal-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--border-color-hover);
+      box-shadow: var(--shadow-glow-hover);
+      background: var(--bg-panel-hover);
+    }
+
+    .portal-card:hover::before {
+      opacity: 1;
+    }
+
+    .card-badge {
+      align-self: flex-start;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-tv {
+      background: rgba(232, 155, 126, 0.1);
+      border: 1px solid rgba(232, 155, 126, 0.2);
+      color: var(--accent-peach);
+    }
+
+    .badge-pc {
+      background: rgba(245, 214, 198, 0.1);
+      border: 1px solid rgba(245, 214, 198, 0.2);
+      color: var(--primary-peach);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulseGlow 1.5s infinite alternate;
+    }
+
+    .card-content {
+      margin-bottom: 32px;
+    }
+
+    .card-icon {
+      margin-bottom: 24px;
+      color: var(--primary-peach);
+      transition: var(--transition-smooth);
+    }
+
+    .portal-card:hover .card-icon {
+      transform: scale(1.1);
+      color: var(--accent-peach);
+    }
+
+    .card-content h3 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-white);
+      margin-bottom: 8px;
+    }
+
+    .card-content h4 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--accent-peach);
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    .card-content p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .card-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-white);
+      padding: 16px 24px;
+      border-radius: var(--radius-md);
+      background: rgba(245, 214, 198, 0.05);
+      border: 1px solid rgba(245, 214, 198, 0.08);
+      transition: var(--transition-smooth);
+    }
+
+    .portal-card:hover .card-action {
+      background: var(--accent-peach);
+      color: #0f0d0c;
+      border-color: var(--accent-peach);
+      box-shadow: 0 8px 24px rgba(232, 155, 126, 0.25);
+    }
+
+    .arrow-icon {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      transition: var(--transition-smooth);
+    }
+
+    .portal-card:hover .arrow-icon {
+      transform: translateX(4px);
+    }
+
+    footer {
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-align: center;
+      border-top: 1px solid rgba(245, 214, 198, 0.04);
+      width: 100%;
+      z-index: 10;
+    }
+
+    footer strong {
+      color: var(--accent-peach);
+    }
+
+    @keyframes pulseLogo {
+      from {
+        transform: scale(1);
+        filter: drop-shadow(0 0 10px rgba(245, 214, 198, 0.3));
+      }
+      to {
+        transform: scale(1.03);
+        filter: drop-shadow(0 0 16px rgba(245, 214, 198, 0.55));
+      }
+    }
+
+    @keyframes pulseGlow {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <header>
+    <div class="brand-container">
+      <svg class="brand-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Butterfly Wing Path from design -->
+        <path d="M 47,48 C 47,38 35,25 22,25 C 9,25 8,38 20,44 C 30,47 47,48 47,48 Z" />
+        <path d="M 53,48 C 53,38 65,25 78,25 C 91,25 92,38 80,44 C 70,47 53,48 53,48 Z" />
+        <path d="M 47,52 C 47,58 40,75 30,75 C 20,75 18,62 30,55 C 38,50 47,52 47,52 Z" />
+        <path d="M 53,52 C 53,58 60,75 70,75 C 80,75 82,62 70,55 C 62,50 53,52 53,52 Z" />
+      </svg>
+      <div class="brand-text">
+        <h1>IRIS</h1>
+        <span>home fragrances</span>
+      </div>
+    </div>
+    <div class="header-tag">Industrial IoT Network</div>
+  </header>
+
+  <main class="portal-main">
+    <div class="portal-title-block">
+      <h2>OEE Telemetry Monitoring</h2>
+      <p>Access active production line telemetry, performance statistics, and control panels optimized for your device.</p>
+    </div>
+
+    <div class="portal-grid">
+      <!-- TV Dashboard Selection -->
+      <div class="portal-card" onclick="window.location.href='./tv_dashboard/'">
+        <div class="card-badge badge-tv">
+          <span class="pulse-dot"></span> Shop Floor View
+        </div>
+        <div class="card-content">
+          <div class="card-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h3>TV Dashboard</h3>
+          <h4>Optimized for Large Screens</h4>
+          <p>Features ultra-large readable telemetry fonts, automatic scaling layouts, active order status strip, breakdown log viewing, and remote action triggers. Intended for overhead monitors.</p>
+        </div>
+        <div class="card-action">
+          <span>Launch TV Dashboard</span>
+          <svg class="arrow-icon" viewBox="0 0 24 24">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- PC Dashboard Selection -->
+      <div class="portal-card" onclick="window.location.href='./pc_dashboard/'">
+        <div class="card-badge badge-pc">
+          <span class="pulse-dot"></span> Supervisor Monitor
+        </div>
+        <div class="card-content">
+          <div class="card-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <path d="M2 20h20"/>
+            </svg>
+          </div>
+          <h3>PC Dashboard</h3>
+          <h4>Optimized for Desktop/Workstation</h4>
+          <p>Offers a detailed all-stations overview, breakdown log analysis, shift status controls, and granular metrics. Best suited for supervisory oversight on PC, laptop, or tablet screens.</p>
+        </div>
+        <div class="card-action">
+          <span>Launch PC Dashboard</span>
+          <svg class="arrow-icon" viewBox="0 0 24 24">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    RionXT Smart OEE System &bull; Powered by <strong>Rion Technologies</strong>
+  </footer>
+
+</body>
+</html>
