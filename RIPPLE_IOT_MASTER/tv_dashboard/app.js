@@ -1648,14 +1648,12 @@ function closeAISuggestionsModal() {
   document.getElementById('ai-suggestions-modal').classList.remove('open');
 }
 
-function escapeMarkdown(val) {
+function escapeHTML(val) {
   if (val === undefined || val === null) return "";
   return String(val)
-    .replace(/_/g, '\\_')
-    .replace(/\*/g, '\\*')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-    .replace(/\`/g, '\\`');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function sendTelegramSummary(messageText) {
@@ -1671,7 +1669,7 @@ function sendTelegramSummary(messageText) {
     body: JSON.stringify({
       chat_id: chatId,
       text: messageText,
-      parse_mode: "Markdown"
+      parse_mode: "HTML"
     })
   })
   .then(res => res.json())
@@ -1978,9 +1976,9 @@ function doneShiftEnd() {
   const oee = totalMachines > 0 ? Math.min(100, Math.round((performance * 0.985 + availability * 0.015))) : 0;
 
   // Construct complete shift end message text
-  let summaryText = `*📋 SHIFT END PRODUCTION SUMMARY*\n`;
+  let summaryText = `<b>📋 SHIFT END PRODUCTION SUMMARY</b>\n`;
   summaryText += `----------------------------------\n`;
-  summaryText += `*Date:* ${escapeMarkdown(orderDate)} | *Shift:* ${escapeMarkdown(shiftName)}\n`;
+  summaryText += `<b>Date:</b> ${escapeHTML(orderDate)} | <b>Shift:</b> ${escapeHTML(shiftName)}\n`;
   if (state.shiftConfig) {
     const boxLabels = {
       "10_12_48": "pouch: 10, inner: 12, outer: 48",
@@ -1991,13 +1989,13 @@ function doneShiftEnd() {
       "100_4_8": "pouch: 100, inner: 4, outer: 8"
     };
     const boxLabel = boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox;
-    summaryText += `*Cup Size:* ${escapeMarkdown(state.shiftConfig.cupSize)} | *Qty/Pouch:* ${state.shiftConfig.pouchQty}\n`;
-    summaryText += `*Box Case:* ${escapeMarkdown(boxLabel)}\n`;
-    if (state.shiftConfig.supervisor) summaryText += `*Supervisor:* ${escapeMarkdown(state.shiftConfig.supervisor)}\n`;
-    if (state.shiftConfig.maintenance) summaryText += `*Maintenance:* ${escapeMarkdown(state.shiftConfig.maintenance)}\n`;
+    summaryText += `<b>Cup Size:</b> ${escapeHTML(state.shiftConfig.cupSize)} | <b>Qty/Pouch:</b> ${state.shiftConfig.pouchQty}\n`;
+    summaryText += `<b>Box Case:</b> ${escapeHTML(boxLabel)}\n`;
+    if (state.shiftConfig.supervisor) summaryText += `<b>Supervisor:</b> ${escapeHTML(state.shiftConfig.supervisor)}\n`;
+    if (state.shiftConfig.maintenance) summaryText += `<b>Maintenance:</b> ${escapeHTML(state.shiftConfig.maintenance)}\n`;
   }
-  summaryText += `*Total Output:* ${totalOutput.toLocaleString()} / Target: ${totalTarget.toLocaleString()}\n`;
-  summaryText += `*Total Rejections:* ${totalRejections.toLocaleString()}\n`;
+  summaryText += `<b>Total Output:</b> ${totalOutput.toLocaleString()} / Target: ${totalTarget.toLocaleString()}\n`;
+  summaryText += `<b>Total Rejections:</b> ${totalRejections.toLocaleString()}\n`;
   summaryText += `----------------------------------\n\n`;
 
   let totalStationTargets = 0;
@@ -2024,18 +2022,18 @@ function doneShiftEnd() {
       const workHrs = (station.workingMins / 60).toFixed(2);
       const bdHrs = (station.breakdownMins / 60).toFixed(2);
 
-      summaryText += `*Station: ${escapeMarkdown(station.name)} (${escapeMarkdown(station.id)})*\n`;
-      summaryText += `👤 *Operator:* ${escapeMarkdown(station.operator)}\n`;
-      summaryText += `🎯 *Target Count:* ${targetInt.toLocaleString()}\n`;
-      summaryText += `📦 *Actual Output:* ${actualInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
-      summaryText += `❌ *Rejections:* ${rejInt.toLocaleString()}\n`;
-      summaryText += `⚡ *Avg Speed:* ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
-      summaryText += `⏳ *Working Hrs:* ${workHrs} hrs (${station.workingMins.toFixed(1)}m)\n`;
-      summaryText += `⚠️ *Breakdown Hrs:* ${bdHrs} hrs (${station.breakdownMins.toFixed(1)}m)\n`;
-      summaryText += `📈 *Prod. Efficiency:* ${prodEff}%\n`;
-      summaryText += `⚙️ *Machine Efficiency:* ${machEff}%\n`;
+      summaryText += `<b>Station: ${escapeHTML(station.name)} (${escapeHTML(station.id)})</b>\n`;
+      summaryText += `👤 <b>Operator:</b> ${escapeHTML(station.operator)}\n`;
+      summaryText += `🎯 <b>Target Count:</b> ${targetInt.toLocaleString()}\n`;
+      summaryText += `📦 <b>Actual Output:</b> ${actualInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
+      summaryText += `❌ <b>Rejections:</b> ${rejInt.toLocaleString()}\n`;
+      summaryText += `⚡ <b>Avg Speed:</b> ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
+      summaryText += `⏳ <b>Working Hrs:</b> ${workHrs} hrs (${station.workingMins.toFixed(1)}m)\n`;
+      summaryText += `⚠️ <b>Breakdown Hrs:</b> ${bdHrs} hrs (${station.breakdownMins.toFixed(1)}m)\n`;
+      summaryText += `📈 <b>Prod. Efficiency:</b> ${prodEff}%\n`;
+      summaryText += `⚙️ <b>Machine Efficiency:</b> ${machEff}%\n`;
       if (station.breakdownReason) {
-        summaryText += `🚨 *BD Reason:* ${escapeMarkdown(station.breakdownReason)}\n`;
+        summaryText += `🚨 <b>BD Reason:</b> ${escapeHTML(station.breakdownReason)}\n`;
       }
       summaryText += `----------------------------------\n\n`;
     });
@@ -2045,24 +2043,24 @@ function doneShiftEnd() {
   const overallMachEff = totalStationMins > 0 ? Math.min(100, (totalStationWorkingMins / totalStationMins) * 100) : 100;
 
   // Append overall performance indicators and OEE to the end
-  summaryText += `*🏆 OVERALL PERFORMANCE INDICATORS*\n`;
+  summaryText += `<b>🏆 OVERALL PERFORMANCE INDICATORS</b>\n`;
   summaryText += `----------------------------------\n`;
-  summaryText += `*📈 Line Availability:* ${availability.toFixed(1)}%\n`;
-  summaryText += `*📉 Performance Rate:* ${performance.toFixed(1)}%\n`;
-  summaryText += `*🎯 Overall Production Efficiency:* ${overallProdEff.toFixed(1)}%\n`;
-  summaryText += `*⚙️ Overall Machine Efficiency:* ${overallMachEff.toFixed(1)}%\n`;
-  summaryText += `*⚡ Overall OEE (Efficiency):* ${oee}%\n`;
+  summaryText += `<b>📈 Line Availability:</b> ${availability.toFixed(1)}%\n`;
+  summaryText += `<b>📉 Performance Rate:</b> ${performance.toFixed(1)}%\n`;
+  summaryText += `<b>🎯 Overall Production Efficiency:</b> ${overallProdEff.toFixed(1)}%\n`;
+  summaryText += `<b>⚙️ Overall Machine Efficiency:</b> ${overallMachEff.toFixed(1)}%\n`;
+  summaryText += `<b>⚡ Overall OEE (Efficiency):</b> ${oee}%\n`;
   summaryText += `----------------------------------\n`;
 
   // Append Breakdown Logs to Telegram Report
-  summaryText += `\n*🛠 BREAKDOWN LOGS*\n`;
+  summaryText += `\n<b>🛠 BREAKDOWN LOGS</b>\n`;
   summaryText += `----------------------------------\n`;
   const logs = state.breakdownLogs || [];
   if (logs.length === 0) {
     summaryText += `No breakdowns logged in this shift.\n`;
   } else {
     logs.forEach(log => {
-      summaryText += `• [${escapeMarkdown(log.timestamp)}] *${escapeMarkdown(log.stationName)}:* ${escapeMarkdown(log.reason)} (${log.bdMins} min)\n`;
+      summaryText += `• [${escapeHTML(log.timestamp)}] <b>${escapeHTML(log.stationName)}:</b> ${escapeHTML(log.reason)} (${log.bdMins} min)\n`;
     });
   }
   summaryText += `----------------------------------\n`;
@@ -2140,11 +2138,11 @@ function doneShiftEnd() {
   const aiSuggestions = generateAISuggestions(currentReport, state.shiftReports.slice(0, -1));
 
   // Append suggestions to Telegram summary text
-  summaryText += `\n*✨ AI PRODUCTION RECOMMENDATIONS*\n`;
+  summaryText += `\n<b>✨ AI PRODUCTION RECOMMENDATIONS</b>\n`;
   summaryText += `----------------------------------\n`;
   aiSuggestions.forEach(s => {
-    summaryText += `${s.icon} *[${escapeMarkdown(s.category)}]* (Impact: ${escapeMarkdown(s.impact)})\n`;
-    summaryText += `• Suggestion: ${escapeMarkdown(s.detail)}\n`;
+    summaryText += `${s.icon} <b>[${escapeHTML(s.category)}]</b> (Impact: ${escapeHTML(s.impact)})\n`;
+    summaryText += `• Suggestion: ${escapeHTML(s.detail)}\n`;
   });
   summaryText += `----------------------------------\n`;
 

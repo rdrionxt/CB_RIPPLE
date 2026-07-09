@@ -1570,11 +1570,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .metric-num {
-    font-size: 2.8rem !important;
+    font-size: 2.4rem !important;
   }
   
   .tv-dashboard .speed-value {
-    font-size: 2.8rem !important;
+    font-size: 2.4rem !important;
   }
   
   .tv-dashboard .speed-unit {
@@ -1730,11 +1730,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .metric-num {
-    font-size: 3.2rem !important;
+    font-size: 2.6rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-value {
-    font-size: 3.2rem !important;
+    font-size: 2.6rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-3 .machine-card .speed-unit {
@@ -1816,11 +1816,11 @@ main.dashboard-view.overview-mode {
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .metric-num {
-    font-size: 4.2rem !important;
+    font-size: 3.5rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-value {
-    font-size: 4.2rem !important;
+    font-size: 3.5rem !important;
   }
   
   .tv-dashboard .machine-grid.stations-count-2 .machine-card .speed-unit {
