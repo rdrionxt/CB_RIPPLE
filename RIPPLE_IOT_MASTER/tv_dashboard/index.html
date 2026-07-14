@@ -48,6 +48,14 @@
       <button class="control-btn" id="btn-bd-log" style="padding: 10px 18px; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--accent-peach); background: rgba(244, 63, 94, 0.1); color: var(--accent-peach); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth); text-transform: uppercase; font-size: 0.75rem;">
         <span>📋</span> BD Log
       </button>
+      <!-- Zoom Controls -->
+      <div class="zoom-controls" style="display: flex; gap: 6px; align-items: center; border-left: 1px solid var(--border-color); padding-left: 15px; margin-left: 5px;">
+        <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-right: 4px;">Zoom:</span>
+        <button class="control-btn" id="btn-zoom-out" style="padding: 6px 12px; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-white); cursor: pointer; font-size: 0.85rem; height: 32px; display: flex; align-items: center; justify-content: center;" title="Zoom Out">A-</button>
+        <span id="zoom-value" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-peach); min-width: 42px; text-align: center;">100%</span>
+        <button class="control-btn" id="btn-zoom-in" style="padding: 6px 12px; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-white); cursor: pointer; font-size: 0.85rem; height: 32px; display: flex; align-items: center; justify-content: center;" title="Zoom In">A+</button>
+        <button class="control-btn" id="btn-zoom-reset" style="padding: 6px 10px; font-size: 0.7rem; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: pointer; height: 32px; display: flex; align-items: center; justify-content: center;" title="Reset Zoom">Reset</button>
+      </div>
     </div>
 
     <!-- Global KPI Panels -->
@@ -378,6 +386,7 @@
           <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
             <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Supervisor Name</label>
             <select id="shift-supervisor" style="padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); outline: none;">
+              <option value="" disabled selected>Select Supervisor</option>
               <option value="Govinda rao cs">Govinda rao cs</option>
               <option value="Abhishek v">Abhishek v</option>
               <option value="Sowmya">Sowmya</option>
@@ -388,6 +397,7 @@
           <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
             <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Maintenance Name</label>
             <select id="shift-maintenance" style="padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); outline: none;">
+              <option value="" disabled selected>Select Maintenance Name</option>
               <option value="Yogesha">Yogesha</option>
               <option value="Somesha">Somesha</option>
               <option value="Raghu">Raghu</option>

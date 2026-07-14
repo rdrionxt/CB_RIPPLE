@@ -15,9 +15,9 @@
 
 // Choose active device here (uncomment exactly one)
 // #define DEVICE_SLAVE1
-#define DEVICE_SLAVE2
+// #define DEVICE_SLAVE2
 // #define DEVICE_SLAVE3
-// #define DEVICE_SLAVE4
+#define DEVICE_SLAVE4
 
 #if defined(DEVICE_SLAVE1)
   #define NUM_INPUTS 3
@@ -90,7 +90,7 @@
  * @def CURRENT_VERSION
  * @brief Current firmware version string.
  */
-#define CURRENT_VERSION "2.5"
+#define CURRENT_VERSION "2.7"
 
 /**
  * @name Google Sheets Queue Memory Addresses
@@ -289,7 +289,7 @@ const long gmtOffset_sec = 19800; // UTC +5:30
 const int daylightOffset_sec = 0;
 
 // --- Google Drive (OTA Version Checks) ---
-const char *version_url = "https://script.google.com/macros/s/AKfycbyDjECTPGJ7tbAmEK5tYV9097VapxrKPk7tDWYDgNBZ/exec";
+const char *version_url = "https://script.google.com/macros/s/AKfycby9v13iLxYlGoY-d9HaoiU-CgEBKNL4c6a2VukQTbJLtB5VBRjMxcBtDQdfs-YNEyWC/exec";
 
 // --- Google App Scripts IDs ---
 String GOOGLE_SCRIPT_ID;
@@ -880,6 +880,9 @@ String station_bd_reasons[MAX_STATIONS];
 String station_operators[MAX_STATIONS];
 float station_working_mins[MAX_STATIONS] = {0.0f};
 float station_breakdown_mins[MAX_STATIONS] = {0.0f};
+uint32_t station_targets[3] = {0};
+String order_no = "";
+String supervisor_name = "";
 String shift_bd_log = "";
  
 #if defined(DEVICE_SLAVE1)
@@ -1306,6 +1309,15 @@ void mqtt_reconnect() {
   lastReconnectAttempt = millis();
 }
 
+void addCalculatedStationMetrics(JsonObject st, uint32_t target, uint32_t count, float station_work) {
+  st["target"] = target;
+  st["pending"] = target > count ? (target - count) : 0;
+  
+  float capped_mins = station_work > 480.0f ? 480.0f : (station_work > 1.0f ? station_work : 1.0f);
+  float expected = (target / 480.0f) * capped_mins;
+  st["efficiency"] = (expected > 0.1f) ? (uint8_t)fmin(100.0f, (count / expected) * 100.0f) : 0;
+}
+
 /**
  * @brief Serializes current machine state and statistics and sends over MQTT.
  */
@@ -1343,6 +1355,8 @@ void send_mqtt() {
     values_json["device_name"] = dev_cap;
     values_json["device_id"] = device_id;
     values_json["part_name"] = part_cap;
+    values_json["order_no"] = order_no;
+    values_json["supervisor"] = supervisor_name;
     values_json["m_state"] = state_cap;
     values_json["t_w_mins"] = ((int)(total_working_shift_mins * 100)) / 100.0;
     values_json["t_bd_mins"] = ((int)(total_bd_shift_mins * 100)) / 100.0;
@@ -1351,7 +1365,7 @@ void send_mqtt() {
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-01";
-      st["actual"] = station_counts[0];
+      st["actual"] = station_shift_counts[0];
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
@@ -1360,11 +1374,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
+      addCalculatedStationMetrics(st, station_targets[0], station_shift_counts[0], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-02";
-      st["actual"] = station_counts[1];
+      st["actual"] = station_shift_counts[1];
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
@@ -1373,11 +1388,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
       st["breakdownReason"] = station_bd_reasons[1];
+      addCalculatedStationMetrics(st, station_targets[1], station_shift_counts[1], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-03";
-      st["actual"] = station_counts[2];
+      st["actual"] = station_shift_counts[2];
       st["t_count"] = station_shift_counts[2];
       float station_work = station_working_mins[2];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[2] / station_work) : 0;
@@ -1386,12 +1402,13 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[2];
       st["breakdownMins"] = station_breakdown_mins[2];
       st["breakdownReason"] = station_bd_reasons[2];
+      addCalculatedStationMetrics(st, station_targets[2], station_shift_counts[2], station_work);
     }
 #elif defined(DEVICE_SLAVE2)
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-04";
-      st["actual"] = station_counts[0];
+      st["actual"] = station_shift_counts[0];
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
@@ -1400,11 +1417,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
+      addCalculatedStationMetrics(st, station_targets[0], station_shift_counts[0], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-05";
-      st["actual"] = station_counts[1];
+      st["actual"] = station_shift_counts[1];
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
@@ -1413,11 +1431,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
       st["breakdownReason"] = station_bd_reasons[1];
+      addCalculatedStationMetrics(st, station_targets[1], station_shift_counts[1], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-06";
-      st["actual"] = station_counts[2];
+      st["actual"] = station_shift_counts[2];
       st["t_count"] = station_shift_counts[2];
       float station_work = station_working_mins[2];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[2] / station_work) : 0;
@@ -1426,12 +1445,13 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[2];
       st["breakdownMins"] = station_breakdown_mins[2];
       st["breakdownReason"] = station_bd_reasons[2];
+      addCalculatedStationMetrics(st, station_targets[2], station_shift_counts[2], station_work);
     }
 #elif defined(DEVICE_SLAVE3)
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-08";
-      st["actual"] = station_counts[0];
+      st["actual"] = station_shift_counts[0];
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
@@ -1440,11 +1460,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
+      addCalculatedStationMetrics(st, station_targets[0], station_shift_counts[0], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-11";
-      st["actual"] = station_counts[1];
+      st["actual"] = station_shift_counts[1];
       st["t_count"] = station_shift_counts[1];
       float station_work = station_working_mins[1];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[1] / station_work) : 0;
@@ -1453,12 +1474,13 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[1];
       st["breakdownMins"] = station_breakdown_mins[1];
       st["breakdownReason"] = station_bd_reasons[1];
+      addCalculatedStationMetrics(st, station_targets[1], station_shift_counts[1], station_work);
     }
 #elif defined(DEVICE_SLAVE4)
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-09";
-      st["actual"] = station_counts[0];
+      st["actual"] = station_shift_counts[0];
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
@@ -1467,11 +1489,12 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
+      addCalculatedStationMetrics(st, station_targets[0], station_shift_counts[0], station_work);
     }
     {
       JsonObject st = stations.createNestedObject();
       st["id"] = "st-10";
-      st["actual"] = station_counts[0];
+      st["actual"] = station_shift_counts[0];
       st["t_count"] = station_shift_counts[0];
       float station_work = station_working_mins[0];
       st["speed"] = station_work > 0.1 ? (uint16_t)(station_shift_counts[0] / station_work) : 0;
@@ -1480,6 +1503,7 @@ void send_mqtt() {
       st["workingMins"] = station_working_mins[0];
       st["breakdownMins"] = station_breakdown_mins[0];
       st["breakdownReason"] = station_bd_reasons[0];
+      addCalculatedStationMetrics(st, station_targets[1], station_shift_counts[0], station_work);
     }
 #endif
 
@@ -1516,6 +1540,30 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
   String incomingId = String((const char *)rcv_data["id"].as<const char *>());
   if (device_id != incomingId) {
     return;
+  }
+
+  if (rcv_data.containsKey("targets")) {
+    JsonArray tgs = rcv_data["targets"].as<JsonArray>();
+    for (int i = 0; i < tgs.size() && i < MAX_STATIONS; i++) {
+      station_targets[i] = tgs[i].as<uint32_t>();
+      Serial.printf("⚙ Saved station_targets[%d] via MQTT: %d\n", i, station_targets[i]);
+    }
+  }
+
+  if (rcv_data.containsKey("order_no")) {
+    order_no = rcv_data["order_no"].as<String>();
+    Serial.println("⚙ Saved order_no via MQTT: " + order_no);
+  }
+
+  if (rcv_data.containsKey("supervisor")) {
+    supervisor_name = rcv_data["supervisor"].as<String>();
+    Serial.println("⚙ Saved supervisor via MQTT: " + supervisor_name);
+  }
+
+  if (rcv_data.containsKey("part_name")) {
+    part_name = rcv_data["part_name"].as<String>();
+    framWriteString(PART_NAME_ADD_ADDR, part_name);
+    Serial.println("⚙ Saved part_name via MQTT: " + part_name);
   }
 
   if (rcv_data.containsKey("operators")) {
@@ -1668,6 +1716,13 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
   }
   if (rcv_data.containsKey("reset")) {
     reset_flag = 1;
+  }
+
+  if (rcv_data.containsKey("trigger_ota")) {
+    if (rcv_data["trigger_ota"].as<bool>()) {
+      Serial.println("⚙ Remote OTA trigger received via MQTT!");
+      checkForUpdate();
+    }
   }
 }
 
@@ -1863,15 +1918,15 @@ void updateDWINDisplay() {
     uint16_t active_bd_mins = 0;
     if (is_shift_data_updated) {
 #if defined(DEVICE_SLAVE4)
-      active_work_mins = (uint16_t)(station_working_mins[0] * 10.0f);
-      active_bd_mins = (uint16_t)(station_breakdown_mins[0] * 10.0f);
+      active_work_mins = (uint16_t)(station_working_mins[0]);
+      active_bd_mins = (uint16_t)(station_breakdown_mins[0]);
 #else
       if (dwin_active_station_idx < MAX_STATIONS) {
-        active_work_mins = (uint16_t)(station_working_mins[dwin_active_station_idx] * 10.0f);
-        active_bd_mins = (uint16_t)(station_breakdown_mins[dwin_active_station_idx] * 10.0f);
+        active_work_mins = (uint16_t)(station_working_mins[dwin_active_station_idx]);
+        active_bd_mins = (uint16_t)(station_breakdown_mins[dwin_active_station_idx]);
       } else {
-        active_work_mins = (uint16_t)(total_working_shift_mins * 10.0f);
-        active_bd_mins = (uint16_t)(total_bd_shift_hrs * 10.0f);
+        active_work_mins = (uint16_t)(total_working_shift_mins);
+        active_bd_mins = (uint16_t)(total_bd_shift_hrs);
       }
 #endif
     }
@@ -1892,13 +1947,13 @@ void updateDWINDisplay() {
       act_count = (uint32_t)(station_counts[0] / inner_outer) * case_qty;
       sh_count = (uint32_t)(station_shift_counts[0] / inner_outer) * case_qty;
     }
-    dwinWriteLong(0x3030, is_shift_data_updated ? act_count : 0);
-    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time * 10) : 0);
-    dwinWriteLong(0x3050, is_shift_data_updated ? sh_count : 0);
+    dwinWriteString(0x3030, is_shift_data_updated ? String(act_count) : "0", 16);
+    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time) : 0);
+    dwinWriteString(0x3050, is_shift_data_updated ? String(sh_count) : "0", 16);
 #else
-    dwinWriteLong(0x3030, is_shift_data_updated ? (uint32_t)((station_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
-    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time * 10) : 0);
-    dwinWriteLong(0x3050, is_shift_data_updated ? (uint32_t)((station_shift_counts[dwin_active_station_idx] * multiplier) / divisor) : 0);
+    dwinWriteString(0x3030, is_shift_data_updated ? String((uint32_t)((station_counts[dwin_active_station_idx] * multiplier) / divisor)) : "0", 16);
+    dwinWriteInt(0x3040, is_shift_data_updated ? (uint16_t)(bd_time) : 0);
+    dwinWriteString(0x3050, is_shift_data_updated ? String((uint32_t)((station_shift_counts[dwin_active_station_idx] * multiplier) / divisor)) : "0", 16);
 #endif
   }
 }
@@ -3091,7 +3146,7 @@ bool write_to_google_sheet_post(const String &jsonPayload) {
     return false;
   }
 
-  const char *scriptUrl = "https://script.google.com/macros/s/AKfycbyDjECTPGJ7tbAmEK5tYV9097VapxrKPk7tDWYDgNBZ/exec";
+  const char *scriptUrl = "https://script.google.com/macros/s/AKfycby9v13iLxYlGoY-d9HaoiU-CgEBKNL4c6a2VukQTbJLtB5VBRjMxcBtDQdfs-YNEyWC/exec";
   const int maxRetries = 2;
   const int retryDelayMs = 1000;
   bool success = false;

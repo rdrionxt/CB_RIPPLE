@@ -32,6 +32,43 @@ function initMQTT() {
   });
 }
 
+// Telemetry live updates loop to handle node disconnections and evaluate active shift status
+function startTelemetryLoop() {
+  state.slaves.forEach(slave => {
+    if (slave.lastTelemetryTime === undefined) {
+      slave.lastTelemetryTime = Date.now();
+    }
+  });
+
+  setInterval(() => {
+    const now = Date.now();
+    const disconnectThreshold = 10000; // 10 seconds timeout
+    let statusChanged = false;
+
+    state.slaves.forEach(slave => {
+      if (slave.status === "Connected") {
+        const lastTime = slave.lastTelemetryTime || 0;
+        if (now - lastTime > disconnectThreshold) {
+          slave.status = "Disconnected";
+          statusChanged = true;
+        }
+      }
+    });
+
+    const newShiftActive = state.slaves.some(s => s.status === "Connected" && s.shift && s.shift !== "---");
+    if (newShiftActive !== state.shiftActive) {
+      state.shiftActive = newShiftActive;
+      statusChanged = true;
+    }
+
+    if (statusChanged) {
+      renderActiveSlaveView();
+      updateGlobalStats();
+      saveStateToLocalStorage();
+    }
+  }, 3000);
+}
+
 // Handle incoming JSON telemetry from Slave ESP32 nodes
 function handleIncomingMessage(topic, payload) {
   try {
@@ -89,54 +126,59 @@ function handleIncomingMessage(topic, payload) {
     slave.status = "Connected";
     slave.lastTelemetryTime = Date.now();
     
-    // Update active shift state from telemetry if available
-    if (data.shift && data.shift !== "---") {
-      state.shiftActive = true;
-    } else if (data.shift === "---") {
-      state.shiftActive = false;
+    // Update slave's shift status and evaluate global shiftActive state
+    if (data.shift) {
+      slave.shift = data.shift;
     }
+    state.shiftActive = state.slaves.some(s => s.status === "Connected" && s.shift && s.shift !== "---");
     
     if (Array.isArray(data.stations)) {
+      console.log(`[Telemetry] Parsing ${data.stations.length} stations for ${slave.id}`);
       data.stations.forEach((incomingSt) => {
         const station = slave.stations.find(st => st.id === incomingSt.id);
         if (station) {
-          if (state.shiftActive) {
-            station.actualRaw = incomingSt.actual;
-            if (station.id === 'st-10') {
-              let qty_per_pouches = 10;
-              let inner_box_qty = 1;
-              let outer_box_qty = 1;
-              if (state.shiftConfig && state.shiftConfig.outerBox) {
-                const parts = state.shiftConfig.outerBox.split('_');
-                qty_per_pouches = parseInt(parts[0]) || 10;
-                inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
-                outer_box_qty = parseInt(parts[2]) || 1;
-              }
-              const completed_boxes = Math.floor(incomingSt.actual / (inner_box_qty * outer_box_qty));
-              const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
-              station.actual = completed_boxes * case_qty;
-              station.actualRaw = completed_boxes;
-              station.speed = incomingSt.speed || 0;
-            } else {
-              const mult = getStationMultiplier(station.id);
-              station.actual = incomingSt.actual * mult;
-              station.speed = (incomingSt.speed || 0) * mult;
+          station.actualRaw = incomingSt.actual;
+          if (station.id === 'st-10') {
+            let qty_per_pouches = 10;
+            let inner_box_qty = 1;
+            let outer_box_qty = 1;
+            if (state.shiftConfig && state.shiftConfig.outerBox) {
+              const parts = state.shiftConfig.outerBox.split('_');
+              qty_per_pouches = parseInt(parts[0]) || 10;
+              inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
+              outer_box_qty = parseInt(parts[2]) || 1;
             }
-            station.status = incomingSt.status || "Running";
-            if (typeof incomingSt.workingMins === 'number') station.workingMins = incomingSt.workingMins;
-            if (typeof incomingSt.breakdownMins === 'number') station.breakdownMins = incomingSt.breakdownMins;
-            if (incomingSt.operator) station.operator = incomingSt.operator;
-            if (typeof incomingSt.target === 'number') station.target = incomingSt.target;
-            if (typeof incomingSt.pending === 'number') station.pending = incomingSt.pending;
-            if (typeof incomingSt.efficiency === 'number') station.efficiency = incomingSt.efficiency;
-            if (incomingSt.breakdownReason !== undefined) {
-              station.breakdownReason = incomingSt.breakdownReason;
-            }
+            const completed_boxes = Math.floor(incomingSt.actual / (inner_box_qty * outer_box_qty));
+            const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
+            station.actual = completed_boxes * case_qty;
+            station.actualRaw = completed_boxes;
+            station.speed = Number(incomingSt.speed) || 0;
           } else {
-            station.actualRaw = 0;
-            station.actual = 0;
-            station.speed = 0;
-            station.status = "Idle";
+            const mult = getStationMultiplier(station.id);
+            station.actual = incomingSt.actual * mult;
+            station.speed = (Number(incomingSt.speed) || 0) * mult;
+          }
+          station.status = incomingSt.status || "Running";
+          if (incomingSt.workingMins !== undefined) {
+            station.workingMins = Number(incomingSt.workingMins) || 0;
+          }
+          if (incomingSt.breakdownMins !== undefined) {
+            station.breakdownMins = Number(incomingSt.breakdownMins) || 0;
+          }
+          if (incomingSt.operator) {
+            station.operator = incomingSt.operator;
+          }
+          if (incomingSt.target !== undefined) {
+            station.target = Number(incomingSt.target) || 0;
+          }
+          if (incomingSt.pending !== undefined) {
+            station.pending = Number(incomingSt.pending) || 0;
+          }
+          if (incomingSt.efficiency !== undefined) {
+            station.efficiency = Number(incomingSt.efficiency) || 0;
+          }
+          if (incomingSt.breakdownReason !== undefined) {
+            station.breakdownReason = incomingSt.breakdownReason;
           }
         }
       });
@@ -309,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyActiveOrder();
   renderActiveSlaveView();
   initMQTT();
+  startTelemetryLoop();
   
   // Hide loading spinner after initial render
   const overlay = document.getElementById('loading-overlay');
@@ -331,10 +374,16 @@ function updateClock() {
 
 // Calculate live machine efficiency based on linear elapsed shift time
 function calculateLiveEfficiency(station) {
-  if (typeof station.efficiency === 'number') {
+  if (typeof station.efficiency === 'number' && station.efficiency > 0) {
     return station.efficiency;
   }
-  if (!state.shiftActive || !state.shiftStartTime || station.target <= 0) {
+  if (station.target <= 0) {
+    return 0;
+  }
+  if (!state.shiftActive || !state.shiftStartTime) {
+    if (station.actual > 0) {
+      return Math.min(100, Math.round((station.actual / station.target) * 100));
+    }
     return 0;
   }
   const elapsedMinutes = (Date.now() - state.shiftStartTime) / 60000;
@@ -361,7 +410,7 @@ function renderActiveSlaveView() {
       if (station.status === 'Major Breakdown') statClass = 'breakdown';
       if (!isSlaveConnected) statClass = 'offline';
 
-      const finalSpeed = (isSlaveConnected && state.shiftActive) ? station.speed : 0;
+      const finalSpeed = isSlaveConnected ? station.speed : 0;
 
       html += `
         <div class="machine-card ${!isSlaveConnected ? 'offline' : ''}">

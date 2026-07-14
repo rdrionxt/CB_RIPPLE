@@ -439,6 +439,33 @@ const breakdownReasons = [
 let currentModalStationId = null;
 let editingOrderId = null;
 
+// Zoom level state
+let defaultZoom = 1.0;
+if (window.screen.width >= 3840 || window.innerWidth >= 3840) {
+  defaultZoom = 2.0; // 4K ST650K display default
+} else if (window.screen.width >= 2560 || window.innerWidth >= 2560) {
+  defaultZoom = 1.5; // 2K display default
+}
+let currentZoom = parseFloat(localStorage.getItem('tv_dashboard_zoom')) || defaultZoom;
+
+function applyZoom(zoomVal) {
+  currentZoom = Math.max(0.4, Math.min(2.5, parseFloat(zoomVal.toFixed(2))));
+  
+  // Set zoom on body
+  document.body.style.zoom = currentZoom;
+  // Also expose as a CSS variable for other components if needed
+  document.documentElement.style.setProperty('--zoom-level', currentZoom);
+  
+  // Update the UI indicator text
+  const zoomValSpan = document.getElementById('zoom-value');
+  if (zoomValSpan) {
+    zoomValSpan.textContent = Math.round(currentZoom * 100) + '%';
+  }
+  
+  // Store the zoom setting in local storage
+  localStorage.setItem('tv_dashboard_zoom', currentZoom);
+}
+
 // Slideshow Autocycling state
 let autoCycleInterval = null;
 let autoCycleActive = true;
@@ -484,6 +511,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   initMQTT();
   updateShiftButtons();
+  
+  // Initialize Zoom scaling
+  applyZoom(currentZoom);
 });
 
 // Live Clock Updater
@@ -571,6 +601,23 @@ function setupEventListeners() {
   // AI Suggestions buttons
   document.getElementById('ai-suggestions-close-btn').addEventListener('click', closeAISuggestionsModal);
   document.getElementById('ai-suggestions-ok-btn').addEventListener('click', closeAISuggestionsModal);
+
+  // Zoom Controls Listeners
+  document.getElementById('btn-zoom-out').addEventListener('click', () => {
+    applyZoom(currentZoom - 0.05);
+  });
+  document.getElementById('btn-zoom-in').addEventListener('click', () => {
+    applyZoom(currentZoom + 0.05);
+  });
+  document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+    let resetZoom = 1.0;
+    if (window.screen.width >= 3840 || window.innerWidth >= 3840) {
+      resetZoom = 2.0; // 4K default
+    } else if (window.screen.width >= 2560 || window.innerWidth >= 2560) {
+      resetZoom = 1.5; // 2K default
+    }
+    applyZoom(resetZoom);
+  });
 
   // Mouse move listener to redirect to all stations overview page
   document.addEventListener('mousemove', () => {
@@ -1080,7 +1127,7 @@ window.promptEditTarget = function(stationId) {
       addLog(station.name, `Target updated to ${val.toLocaleString()}`, 'info');
       renderActiveSlaveView();
       if (slave) {
-        publishDeviceConfig(slave.id, { target: val, station_id: stationId });
+        publishDeviceConfig(slave.id, { targets: slave.stations.map(st => st.target) });
       }
     } else {
       alert('Please enter a valid positive number.');
@@ -1367,6 +1414,7 @@ const operatorList = [
   'KUMARI',
   'PRAVEENA B.C',
   'C B RANI',
+  'RANI',
   'NIRMALA N',
   'ASHA M.V',
   'MAHESHWARI G.M',
@@ -1452,7 +1500,8 @@ function openShiftStartModal() {
   });
 
   allStations.forEach(({ slave, station }) => {
-    const options = operatorList.map(op => 
+    let options = `<option value="" disabled ${!station.operator ? 'selected' : ''}>Select Operator</option>`;
+    options += operatorList.map(op => 
       `<option value="${op}" ${station.operator === op ? 'selected' : ''}>${op}</option>`
     ).join('');
 
@@ -1510,14 +1559,70 @@ function closeShiftStartModal() {
 }
 
 function doneShiftStart() {
+  // 1. Validate Active Order Selection
   const activeOrder = state.orders.find(o => o.active);
   if (!activeOrder) {
-    alert("Please select or create an active Production Order in the sidebar before starting the shift!");
+    alert("INTERLOCK BLOCKED: Please select or create an active Production Order in the sidebar before starting the shift!");
     return;
   }
+
+  // 2. Validate Target Quantity
+  if (!activeOrder.targetQty || isNaN(activeOrder.targetQty) || activeOrder.targetQty <= 0) {
+    alert("INTERLOCK BLOCKED: The active Production Order has no valid Target Quantity! Please edit the order to set a target quantity greater than 0 before starting the shift.");
+    return;
+  }
+
+  // 3. Validate Parts Details / Active Item Name
+  if (!state.activeItemName || state.activeItemName.trim() === "" || state.activeItemName === "---" || state.activeItemName.toUpperCase().includes("SELECT")) {
+    alert("INTERLOCK BLOCKED: Active Item/Part name is not specified! Please click on the Active Item strip at the top to set the active product detail first.");
+    return;
+  }
+
+  // 4. Validate Supervisor Selection
+  const supervisorEl = document.getElementById('shift-supervisor');
+  if (supervisorEl && (!supervisorEl.value || supervisorEl.value.trim() === "")) {
+    alert("INTERLOCK BLOCKED: Please select a Supervisor Name before starting the shift!");
+    return;
+  }
+
+  // 5. Validate Maintenance Selection
+  const maintenanceEl = document.getElementById('shift-maintenance');
+  if (maintenanceEl && (!maintenanceEl.value || maintenanceEl.value.trim() === "")) {
+    alert("INTERLOCK BLOCKED: Please select a Maintenance Name before starting the shift!");
+    return;
+  }
+
   const skipCheckbox = document.getElementById('skip-operators-checkbox');
   const skip = skipCheckbox.checked;
 
+  // Temp object to hold and validate operator assignments
+  let tempOperators = {};
+
+  if (!skip) {
+    const dropdowns = document.querySelectorAll('.operator-dropdown');
+    dropdowns.forEach(dd => {
+      const stationId = dd.getAttribute('data-station-id');
+      tempOperators[stationId] = dd.value;
+    });
+  }
+
+  // 6. Validate Operators Name assigned to all stations
+  let unassignedStations = [];
+  state.slaves.forEach(slave => {
+    slave.stations.forEach(station => {
+      const op = skip ? station.operator : tempOperators[station.id];
+      if (!op || op.trim() === "" || op === "---" || op.toUpperCase().includes("SELECT")) {
+        unassignedStations.push(`${station.name} (${slave.id})`);
+      }
+    });
+  });
+
+  if (unassignedStations.length > 0) {
+    alert("INTERLOCK BLOCKED: Please assign a valid Operator Name to all stations before starting the shift!\n\nUnassigned stations:\n- " + unassignedStations.join("\n- "));
+    return;
+  }
+
+  // If all validation interlocks pass, perform assignments:
   if (!skip) {
     const dropdowns = document.querySelectorAll('.operator-dropdown');
     dropdowns.forEach(dd => {
@@ -1534,8 +1639,7 @@ function doneShiftStart() {
   const cupSizeEl = document.getElementById('shift-cup-size');
   const pouchQtyEl = document.getElementById('shift-pouch-qty');
   const outerBoxEl = document.getElementById('shift-outer-box');
-  const supervisorEl = document.getElementById('shift-supervisor');
-  const maintenanceEl = document.getElementById('shift-maintenance');
+
   state.shiftConfig = {
     cupSize: cupSizeEl ? cupSizeEl.value : '9mm',
     pouchQty: pouchQtyEl ? parseInt(pouchQtyEl.value, 10) : 10,
@@ -1543,6 +1647,9 @@ function doneShiftStart() {
     supervisor: supervisorEl ? supervisorEl.value : '',
     maintenance: maintenanceEl ? maintenanceEl.value : ''
   };
+
+  // Automatically distribute and fetch latest target plan & counts to stations
+  applyActiveOrder();
 
   // Reset shift production metrics & status
   state.shiftActive = true;
@@ -1693,19 +1800,51 @@ function sendEmailReportViaAppsScript(emailData) {
   
   fetch(url, {
     method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "application/json"
-    },
     body: JSON.stringify(emailData)
   })
-  .then(() => {
-    console.log("📨 Excel email report request dispatched successfully.");
-    addLog("Email", "Excel report dispatched to riontechnologies2021@gmail.com", "success");
+  .then(res => res.json())
+  .then(data => {
+    console.log("📨 Excel email report request dispatched successfully:", data);
+    addLog("Email", "Excel report and Telegram summary dispatched successfully", "success");
   })
   .catch(err => {
     console.error("❌ Email dispatch error:", err);
-    addLog("Email", "Network error dispatching Excel report", "alert");
+    addLog("Email", "Network error dispatching Excel report, attempting client-side direct Telegram fallback...", "alert");
+    
+    // Direct fallback for Telegram report in case Google Apps Script web app is unreachable or blocked
+    sendTelegramDirectFallback(emailData.telegram_text);
+  });
+}
+
+function sendTelegramDirectFallback(messageText) {
+  const token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
+  const chatId = "-5005894782";
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: messageText,
+      parse_mode: 'HTML'
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      console.log("✅ Fallback Telegram report sent successfully client-side!");
+      addLog("Telegram", "Fallback Telegram summary sent successfully", "success");
+    } else {
+      console.error("❌ Fallback Telegram API error:", data);
+      addLog("Telegram", `API error sending fallback: ${data.description}`, "alert");
+    }
+  })
+  .catch(err => {
+    console.error("❌ Fallback Telegram connection error:", err);
+    addLog("Telegram", "Network error sending fallback Telegram summary", "alert");
   });
 }
 
@@ -2388,26 +2527,14 @@ function applyActiveOrder() {
       } else if (station.id === 'st-09') {
         station.target = T;
       } else if (station.id === 'st-10') {
-        let qty_per_pouches = 10;
-        let inner_box_qty = 1;
-        let outer_box_qty = 1;
-        if (state.shiftConfig && state.shiftConfig.outerBox) {
-          const parts = state.shiftConfig.outerBox.split('_');
-          qty_per_pouches = parseInt(parts[0]) || 10;
-          inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
-          outer_box_qty = parseInt(parts[2]) || 1;
-        }
-        station.target = Math.round(T / (qty_per_pouches * inner_box_qty * outer_box_qty));
+        station.target = T;
       }
     });
   });
 
   // Broadcast new order configuration targets to MQTT for all active slaves
   state.slaves.forEach(slave => {
-    const targets = {};
-    slave.stations.forEach(st => {
-      targets[st.id] = st.target;
-    });
+    const targets = slave.stations.map(st => st.target);
     publishDeviceConfig(slave.id, {
       shift: activeOrder.shift,
       targets: targets,
@@ -2520,10 +2647,18 @@ function doneCreateOrder() {
   const orderNumberVal = document.getElementById('order-number-input').value.trim();
   const dateVal = document.getElementById('order-date-input').value;
   const shiftVal = document.getElementById('order-shift-input').value;
-  const targetVal = parseInt(document.getElementById('order-target-input').value) || 80000;
+  const targetVal = parseInt(document.getElementById('order-target-input').value);
   
+  if (!orderNumberVal) {
+    alert("Please enter a valid Order Number.");
+    return;
+  }
   if (!dateVal) {
     alert("Please enter a valid date.");
+    return;
+  }
+  if (isNaN(targetVal) || targetVal <= 0) {
+    alert("Please enter a valid Target Quantity greater than 0.");
     return;
   }
   
