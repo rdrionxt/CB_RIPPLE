@@ -90,7 +90,7 @@
  * @def CURRENT_VERSION
  * @brief Current firmware version string.
  */
-#define CURRENT_VERSION "2.7"
+#define CURRENT_VERSION "2.8"
 
 /**
  * @name Google Sheets Queue Memory Addresses
