@@ -2653,7 +2653,7 @@ function renderOrderDirectory() {
         <h3 class="sidebar-title">Production Orders</h3>
         <button id="btn-create-order" style="background:transparent; border:1px solid var(--accent-peach); color:var(--accent-peach); border-radius:4px; padding:2px 8px; font-size:0.7rem; font-weight:600; cursor:pointer; text-transform:uppercase; transition:var(--transition-smooth); margin:0;">+ New</button>
       </div>
-      <ul class="slave-nav-list" id="order-list" style="max-height: 180px; overflow-y: auto; list-style:none;">
+      <ul class="slave-nav-list" id="order-list" style="max-height: 320px; overflow-y: auto; list-style:none;">
         <!-- Rendered dynamically -->
       </ul>
     `;
@@ -2670,7 +2670,7 @@ function renderOrderDirectory() {
     const activeClass = order.active ? 'active' : '';
     const ordNumStr = order.orderNumber ? `<div style="font-size:0.65rem; font-weight:bold; color:var(--accent-peach); margin-bottom: 2px;"># ${order.orderNumber}</div>` : '';
     return `
-      <li class="slave-nav-item ${activeClass}" onclick="selectOrder('${order.id}')" style="padding: 10px; margin-bottom: 6px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor:pointer;">
+      <li class="slave-nav-item ${activeClass}" onclick="selectOrder('${order.id}')" style="padding: 12px; margin-bottom: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor:pointer;">
         <div class="slave-nav-header" style="margin-bottom: 2px; display:flex; justify-content:space-between; align-items:center;">
           <div style="display:flex; flex-direction:column;">
             ${ordNumStr}
