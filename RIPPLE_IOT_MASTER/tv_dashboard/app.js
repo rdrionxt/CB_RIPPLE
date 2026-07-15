@@ -1,5 +1,47 @@
-// MQTT Client reference
 let mqttClient = null;
+
+function getWifiColor(rssi) {
+  if (rssi === undefined || rssi === null || rssi === 0) return "var(--text-muted)";
+  if (rssi >= -50) return "var(--status-running)"; // Excellent
+  if (rssi >= -67) return "#34d399"; // Good
+  if (rssi >= -75) return "var(--status-idle)"; // Fair
+  if (rssi >= -85) return "#f97316"; // Poor
+  return "var(--status-breakdown)"; // Weak
+}
+
+function getWifiSignalHTML(rssi) {
+  if (rssi === undefined || rssi === null || rssi === 0) {
+    return `<span class="wifi-signal-display" style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px; font-weight: normal;">📶 N/A</span>`;
+  }
+  
+  let label = "Excellent";
+  let color = "var(--status-running)";
+  
+  if (rssi >= -50) {
+    label = "Excellent";
+    color = "var(--status-running)";
+  } else if (rssi >= -67) {
+    label = "Good";
+    color = "#34d399";
+  } else if (rssi >= -75) {
+    label = "Fair";
+    color = "var(--status-idle)";
+  } else if (rssi >= -85) {
+    label = "Poor";
+    color = "#f97316";
+  } else {
+    label = "Weak";
+    color = "var(--status-breakdown)";
+  }
+  
+  return `
+    <span class="wifi-signal-display" style="display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; color: ${color}; font-weight: 700; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px;" title="Signal Strength: ${rssi} dBm (${label})">
+      <span style="font-size: 0.85rem;">📶</span>
+      <span style="font-family: var(--font-mono); font-size: 0.85rem;">${rssi} dBm</span>
+      <span style="font-size: 0.75rem; font-weight: 500; text-transform: uppercase; opacity: 0.9;">(${label})</span>
+    </span>
+  `;
+}
 
 // Initialize MQTT WebSockets connection
 function initMQTT() {
@@ -85,6 +127,7 @@ function handleIncomingMessage(topic, payload) {
     // Mark the slave as Connected and track telemetry timestamp
     slave.status = "Connected";
     slave.lastTelemetryTime = Date.now();
+    slave.wifi_rssi = typeof data.wifi_rssi === 'number' ? data.wifi_rssi : (data.rssi !== undefined ? parseInt(data.rssi) : null);
     
     // If shift is active globally, check synchronization state of the slave
     if (state.shiftActive) {
@@ -141,7 +184,7 @@ function handleIncomingMessage(topic, payload) {
             if (typeof incomingSt.workingMins === 'number') station.workingMins = incomingSt.workingMins;
             if (typeof incomingSt.breakdownMins === 'number') station.breakdownMins = incomingSt.breakdownMins;
             if (incomingSt.operator) station.operator = incomingSt.operator;
-            if (typeof incomingSt.target === 'number') station.target = incomingSt.target;
+            if (typeof incomingSt.target === 'number' && incomingSt.target > 0) station.target = incomingSt.target;
             if (typeof incomingSt.pending === 'number') station.pending = incomingSt.pending;
             if (typeof incomingSt.efficiency === 'number') station.efficiency = incomingSt.efficiency;
             if (incomingSt.breakdownReason !== undefined) {
@@ -159,6 +202,9 @@ function handleIncomingMessage(topic, payload) {
         }
       });
     }
+    
+    // Calculate and update virtual stations (Manual Pouching, Case Packing)
+    updateVirtualStations();
     
     // Trigger dynamic dashboard view refresh
     renderSlaveSidebar();
@@ -404,7 +450,8 @@ const state = {
       status: 'Connected',
       stations: [
         { id: 'st-08', name: 'Pouching Station 1', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'VANI SRI.T.R', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-11', name: 'Pouching Station 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'YASHWINI', workingMins: 0, breakdownMins: 0 }
+        { id: 'st-11', name: 'Pouching Station 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'YASHWINI', workingMins: 0, breakdownMins: 0 },
+        { id: 'st-12', name: 'Manual Pouching', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MANUAL', workingMins: 0, breakdownMins: 0 }
       ]
     },
     {
@@ -703,7 +750,10 @@ function renderSlaveSidebar() {
         </div>
         <div class="connection-indicator">
           <span class="pulse-dot ${isConn ? 'connected' : 'disconnected'}"></span>
-          <span>Gateway: ${slave.status} ${alarmCount > 0 && isConn ? `<strong style="color: var(--status-breakdown); margin-left: 10px;">(${alarmCount} ALARM)</strong>` : ''}</span>
+          <span>
+            Gateway: ${slave.status}${isConn && slave.wifi_rssi !== undefined && slave.wifi_rssi !== null ? ` <span style="color: ${getWifiColor(slave.wifi_rssi)}; font-weight: 600; margin-left: 4px;">📶 ${slave.wifi_rssi} dBm</span>` : ''}
+            ${alarmCount > 0 && isConn ? `<strong style="color: var(--status-breakdown); margin-left: 10px;">(${alarmCount} ALARM)</strong>` : ''}
+          </span>
         </div>
         ${state.shiftActive ? `
         <div class="connection-indicator" style="margin-top: 4px;">
@@ -816,7 +866,7 @@ function renderActiveSlaveView() {
               <div>
                 <h3 class="machine-title" style="margin-bottom: 2px;">${station.name}</h3>
                 <span style="font-size:0.6rem; color:var(--text-muted); font-family:var(--font-mono); font-weight: normal;">
-                  ${slave.id} | MAC: ${slave.mac}
+                  ${slave.id} | MAC: ${slave.mac}${isSlaveConnected && slave.wifi_rssi !== undefined && slave.wifi_rssi !== null ? ` | RSSI: <strong style="color: ${getWifiColor(slave.wifi_rssi)}">${slave.wifi_rssi} dBm</strong>` : ''}
                 </span>
               </div>
               <div class="status-pill-container">
@@ -918,9 +968,12 @@ function renderActiveSlaveView() {
   document.getElementById('active-slave-meta').innerText = `ID: ${activeSlave.id} | MAC Address: ${activeSlave.mac}`;
   
   connToggle.checked = activeSlave.status === 'Connected';
-  connLabel.innerText = `Gateway Status: ${activeSlave.status}`;
-
   const isSlaveConnected = activeSlave.status === 'Connected';
+  if (isSlaveConnected && activeSlave.wifi_rssi !== undefined && activeSlave.wifi_rssi !== null) {
+    connLabel.innerHTML = `Gateway Status: Connected ${getWifiSignalHTML(activeSlave.wifi_rssi)}`;
+  } else {
+    connLabel.innerText = `Gateway Status: ${activeSlave.status}`;
+  }
 
   if (activeSlave.stations.length === 0) {
     gridEl.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">No machines assigned to this Slave node.</p>`;
@@ -1697,6 +1750,8 @@ function doneShiftStart() {
 
   addLog('Shift Control', 'New shift started. Production metrics reset.', 'success');
   closeShiftStartModal();
+  const endManpowerEl = document.getElementById('shift-end-manpower');
+  if (endManpowerEl) endManpowerEl.value = 0;
   updateShiftButtons();
 
   showLoading('Initializing Devices & Resetting Metrics...', 2000, () => {
@@ -1796,7 +1851,7 @@ function sendTelegramSummary(messageText) {
 }
 
 function sendEmailReportViaAppsScript(emailData) {
-  const url = "https://script.google.com/macros/s/AKfycbym8SslznTOAzRPA6ZyezrZPwWCmhctdP9aBAexfMcokFMnDffewBB6JpE74rlu05Dz/exec";
+  const url = "https://script.google.com/macros/s/AKfycbyE6X67hqtHbPr9PXzxGWQQDMyF5Bq3TCyI_VDxwrStKk0PNdCrlfisUqlaBR0zs8sz/exec";
   
   fetch(url, {
     method: "POST",
@@ -1804,8 +1859,32 @@ function sendEmailReportViaAppsScript(emailData) {
   })
   .then(res => res.json())
   .then(data => {
-    console.log("📨 Excel email report request dispatched successfully:", data);
-    addLog("Email", "Excel report and Telegram summary dispatched successfully", "success");
+    console.log("📨 Excel email report response received:", data);
+    if (data.status === "success") {
+      if (data.email_sent && data.telegram_sent) {
+        addLog("Email", "Excel report and Telegram summary dispatched successfully", "success");
+      } else {
+        if (!data.email_sent) {
+          console.warn("⚠️ Email report failed on Google Apps Script: " + data.email_error);
+          addLog("Email", "Excel report failed to send: " + data.email_error, "alert");
+        } else {
+          addLog("Email", "Excel report dispatched successfully", "success");
+        }
+        
+        if (!data.telegram_sent) {
+          console.warn("⚠️ Telegram report failed on Apps Script: " + data.telegram_error + ". Falling back to client-side...");
+          addLog("Telegram", "Apps Script Telegram failed: " + data.telegram_error + ". Triggering client-side fallback...", "warning");
+          sendTelegramDirectFallback(emailData.telegram_text);
+        } else {
+          addLog("Telegram", "Telegram summary dispatched successfully", "success");
+        }
+      }
+    } else {
+      console.error("❌ Apps Script error:", data.message);
+      addLog("Email", "Apps Script dispatch error: " + data.message, "alert");
+      addLog("Telegram", "Attempting client-side direct Telegram fallback...", "warning");
+      sendTelegramDirectFallback(emailData.telegram_text);
+    }
   })
   .catch(err => {
     console.error("❌ Email dispatch error:", err);
@@ -2108,6 +2187,19 @@ function doneShiftEnd() {
   const shiftName = activeOrder ? activeOrder.shift : "Shift A";
   const orderDate = activeOrder ? activeOrder.date : new Date().toISOString().split('T')[0];
 
+  // Retrieve Manpower Count
+  const manpowerEl = document.getElementById('shift-end-manpower');
+  const manpowerCount = manpowerEl ? parseFloat(manpowerEl.value) || 0 : 0;
+
+  // Format Timestamps
+  const formatDateTime = (ts) => {
+    if (!ts) return "N/A";
+    const d = new Date(ts);
+    return d.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+  const startTimeStr = formatDateTime(state.shiftStartTime);
+  const endTimeStr = formatDateTime(Date.now());
+
   // Calculate exit output and performance rate
   const labelingStation = findStationGlobal('st-09').station;
   const exitOutput = labelingStation ? Math.floor(labelingStation.actual) : 0;
@@ -2118,6 +2210,9 @@ function doneShiftEnd() {
   let summaryText = `<b>📋 SHIFT END PRODUCTION SUMMARY</b>\n`;
   summaryText += `----------------------------------\n`;
   summaryText += `<b>Date:</b> ${escapeHTML(orderDate)} | <b>Shift:</b> ${escapeHTML(shiftName)}\n`;
+  summaryText += `<b>Start Time:</b> ${startTimeStr}\n`;
+  summaryText += `<b>End Time:</b> ${endTimeStr}\n`;
+  summaryText += `<b>Manpower:</b> ${manpowerCount}\n`;
   if (state.shiftConfig) {
     const boxLabels = {
       "10_12_48": "pouch: 10, inner: 12, outer: 48",
@@ -2162,18 +2257,10 @@ function doneShiftEnd() {
       const bdHrs = (station.breakdownMins / 60).toFixed(2);
 
       summaryText += `<b>Station: ${escapeHTML(station.name)} (${escapeHTML(station.id)})</b>\n`;
-      summaryText += `👤 <b>Operator:</b> ${escapeHTML(station.operator)}\n`;
-      summaryText += `🎯 <b>Target Count:</b> ${targetInt.toLocaleString()}\n`;
-      summaryText += `📦 <b>Actual Output:</b> ${actualInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
-      summaryText += `❌ <b>Rejections:</b> ${rejInt.toLocaleString()}\n`;
-      summaryText += `⚡ <b>Avg Speed:</b> ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
-      summaryText += `⏳ <b>Working Hrs:</b> ${workHrs} hrs (${station.workingMins.toFixed(1)}m)\n`;
-      summaryText += `⚠️ <b>Breakdown Hrs:</b> ${bdHrs} hrs (${station.breakdownMins.toFixed(1)}m)\n`;
-      summaryText += `📈 <b>Prod. Efficiency:</b> ${prodEff}%\n`;
-      summaryText += `⚙️ <b>Machine Efficiency:</b> ${machEff}%\n`;
-      if (station.breakdownReason) {
-        summaryText += `🚨 <b>BD Reason:</b> ${escapeHTML(station.breakdownReason)}\n`;
-      }
+      summaryText += `👤 Op: ${escapeHTML(station.operator)} | ⚡ Spd: ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
+      summaryText += `🎯 Tar: ${targetInt.toLocaleString()} | 📦 Act: ${actualInt.toLocaleString()} | ❌ Rej: ${rejInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
+      summaryText += `📈 Eff: Prod ${prodEff}% / Mach ${machEff}%\n`;
+      summaryText += `⏳ Work: ${workHrs}h | ⚠️ BD: ${bdHrs}h${station.breakdownReason ? ` [🚨 ${escapeHTML(station.breakdownReason)}]` : ''}\n`;
       summaryText += `----------------------------------\n\n`;
     });
   });
@@ -2279,7 +2366,7 @@ function doneShiftEnd() {
   // Append suggestions to Telegram summary text
   summaryText += `\n<b>✨ AI PRODUCTION RECOMMENDATIONS</b>\n`;
   summaryText += `----------------------------------\n`;
-  aiSuggestions.forEach(s => {
+  aiSuggestions.slice(0, 3).forEach(s => {
     summaryText += `${s.icon} <b>[${escapeHTML(s.category)}]</b> (Impact: ${escapeHTML(s.impact)})\n`;
     summaryText += `• Suggestion: ${escapeHTML(s.detail)}\n`;
   });
@@ -2317,7 +2404,8 @@ function doneShiftEnd() {
       pouch_qty: state.shiftConfig ? state.shiftConfig.pouchQty : 0,
       outer_box: boxLabel,
       supervisor: state.shiftConfig ? state.shiftConfig.supervisor : "N/A",
-      maintenance: state.shiftConfig ? state.shiftConfig.maintenance : "N/A"
+      maintenance: state.shiftConfig ? state.shiftConfig.maintenance : "N/A",
+      manpower: manpowerCount
     },
     stations: stationsData,
     metrics: {
@@ -2523,7 +2611,9 @@ function applyActiveOrder() {
       } else if (station.id === 'st-02' || station.id === 'st-03' || station.id === 'st-04' || station.id === 'st-05' || station.id === 'st-06') {
         station.target = Math.round(T / 5);
       } else if (station.id === 'st-08' || station.id === 'st-11') {
-        station.target = Math.round(T / 2);
+        station.target = Math.round(T * 0.25);
+      } else if (station.id === 'st-12') {
+        station.target = Math.round(T * 0.50);
       } else if (station.id === 'st-09') {
         station.target = T;
       } else if (station.id === 'st-10') {
@@ -2531,6 +2621,8 @@ function applyActiveOrder() {
       }
     });
   });
+
+  updateVirtualStations();
 
   // Broadcast new order configuration targets to MQTT for all active slaves
   state.slaves.forEach(slave => {
@@ -2695,4 +2787,44 @@ function doneCreateOrder() {
   renderOrderDirectory();
   renderActiveSlaveView();
   updateGlobalStats();
+}
+
+function updateVirtualStations() {
+  const p1 = findStationGlobal('st-08').station;
+  const p2 = findStationGlobal('st-11').station;
+  const manual = findStationGlobal('st-12').station;
+  const label = findStationGlobal('st-09').station;
+  const packing = findStationGlobal('st-10').station;
+  
+  const activeOrder = state.orders.find(o => o.active);
+  const T = activeOrder ? activeOrder.targetQty : 80000;
+  
+  if (p1) p1.target = Math.round(T * 0.25);
+  if (p2) p2.target = Math.round(T * 0.25);
+  if (manual) {
+    manual.target = Math.round(T * 0.50);
+    if (p1 && p2 && label) {
+      manual.actual = Math.max(0, label.actual - p1.actual - p2.actual);
+      manual.status = (p1.status === 'Running' || p2.status === 'Running') ? 'Running' : 'Idle';
+      manual.speed = Math.max(0, label.speed - p1.speed - p2.speed);
+    }
+  }
+  
+  if (packing && label) {
+    let qty_per_pouches = 10;
+    let inner_box_qty = 1;
+    let outer_box_qty = 1;
+    if (state.shiftConfig && state.shiftConfig.outerBox) {
+      const parts = state.shiftConfig.outerBox.split('_');
+      qty_per_pouches = parseInt(parts[0]) || 10;
+      inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
+      outer_box_qty = parseInt(parts[2]) || 1;
+    }
+    const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
+    
+    const completed_boxes = Math.floor(label.actual / case_qty);
+    packing.actual = completed_boxes * case_qty;
+    packing.actualRaw = completed_boxes;
+    packing.speed = label.speed > 0 ? (label.speed / case_qty) : 0;
+  }
 }

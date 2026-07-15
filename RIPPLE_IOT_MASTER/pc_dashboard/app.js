@@ -1,5 +1,13 @@
-// MQTT Client reference for PC Monitor Dashboard
 let mqttClient = null;
+
+function getWifiColor(rssi) {
+  if (rssi === undefined || rssi === null || rssi === 0) return "var(--text-muted)";
+  if (rssi >= -50) return "var(--status-running)"; // Excellent
+  if (rssi >= -67) return "#34d399"; // Good
+  if (rssi >= -75) return "var(--status-idle)"; // Fair
+  if (rssi >= -85) return "#f97316"; // Poor
+  return "var(--status-breakdown)"; // Weak
+}
 
 // Initialize MQTT WebSockets connection
 function initMQTT() {
@@ -125,6 +133,7 @@ function handleIncomingMessage(topic, payload) {
     
     slave.status = "Connected";
     slave.lastTelemetryTime = Date.now();
+    slave.wifi_rssi = typeof data.wifi_rssi === 'number' ? data.wifi_rssi : (data.rssi !== undefined ? parseInt(data.rssi) : null);
     
     // Update slave's shift status and evaluate global shiftActive state
     if (data.shift) {
@@ -168,7 +177,7 @@ function handleIncomingMessage(topic, payload) {
           if (incomingSt.operator) {
             station.operator = incomingSt.operator;
           }
-          if (incomingSt.target !== undefined) {
+          if (incomingSt.target !== undefined && Number(incomingSt.target) > 0) {
             station.target = Number(incomingSt.target) || 0;
           }
           if (incomingSt.pending !== undefined) {
@@ -183,6 +192,9 @@ function handleIncomingMessage(topic, payload) {
         }
       });
     }
+    
+    // Calculate and update virtual stations (Manual Pouching, Case Packing)
+    updateVirtualStations();
     
     // Re-draw monitor cards and update strip headers
     applyActiveOrder();
@@ -326,7 +338,8 @@ const state = {
       status: 'Connected',
       stations: [
         { id: 'st-08', name: 'Pouching Station 1', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'VANI SRI.T.R', workingMins: 0, breakdownMins: 0 },
-        { id: 'st-11', name: 'Pouching Station 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'YASHWINI', workingMins: 0, breakdownMins: 0 }
+        { id: 'st-11', name: 'Pouching Station 2', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'YASHWINI', workingMins: 0, breakdownMins: 0 },
+        { id: 'st-12', name: 'Manual Pouching', target: 0, actual: 0, status: 'Idle', speed: 0, breakdownReason: '', notes: '', operator: 'MANUAL', workingMins: 0, breakdownMins: 0 }
       ]
     },
     {
@@ -418,7 +431,7 @@ function renderActiveSlaveView() {
             <div>
               <h3 class="machine-title" style="margin-bottom: 2px;">${station.name}</h3>
               <span style="font-size:0.6rem; color:var(--text-muted); font-family:var(--font-mono); font-weight: normal;">
-                ${slave.id} | MAC: ${slave.mac}
+                ${slave.id} | MAC: ${slave.mac}${isSlaveConnected && slave.wifi_rssi !== undefined && slave.wifi_rssi !== null ? ` | RSSI: <strong style="color: ${getWifiColor(slave.wifi_rssi)}">${slave.wifi_rssi} dBm</strong>` : ''}
               </span>
             </div>
             <div class="status-pill-container">
@@ -597,9 +610,50 @@ function applyActiveOrder() {
       container.innerHTML = `<span><strong style="color: var(--status-idle);">NO ACTIVE SHIFT / ORDER RUNNING</strong></span>`;
     }
   }
+  updateVirtualStations();
 }
 
 // Alert for read-only user actions
 window.showReadOnlyAlert = function() {
   alert("This PC Dashboard is for Monitoring only. To start/end shifts, configure orders, or log faults, please use the TV Dashboard.");
 };
+
+function updateVirtualStations() {
+  const p1 = findStationGlobal('st-08').station;
+  const p2 = findStationGlobal('st-11').station;
+  const manual = findStationGlobal('st-12').station;
+  const label = findStationGlobal('st-09').station;
+  const packing = findStationGlobal('st-10').station;
+  
+  const activeOrder = state.orders.find(o => o.active);
+  const T = activeOrder ? activeOrder.targetQty : 80000;
+  
+  if (p1) p1.target = Math.round(T * 0.25);
+  if (p2) p2.target = Math.round(T * 0.25);
+  if (manual) {
+    manual.target = Math.round(T * 0.50);
+    if (p1 && p2 && label) {
+      manual.actual = Math.max(0, label.actual - p1.actual - p2.actual);
+      manual.status = (p1.status === 'Running' || p2.status === 'Running') ? 'Running' : 'Idle';
+      manual.speed = Math.max(0, label.speed - p1.speed - p2.speed);
+    }
+  }
+  
+  if (packing && label) {
+    let qty_per_pouches = 10;
+    let inner_box_qty = 1;
+    let outer_box_qty = 1;
+    if (state.shiftConfig && state.shiftConfig.outerBox) {
+      const parts = state.shiftConfig.outerBox.split('_');
+      qty_per_pouches = parseInt(parts[0]) || 10;
+      inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
+      outer_box_qty = parseInt(parts[2]) || 1;
+    }
+    const case_qty = qty_per_pouches * inner_box_qty * outer_box_qty;
+    
+    const completed_boxes = Math.floor(label.actual / case_qty);
+    packing.actual = completed_boxes * case_qty;
+    packing.actualRaw = completed_boxes;
+    packing.speed = label.speed > 0 ? (label.speed / case_qty) : 0;
+  }
+}

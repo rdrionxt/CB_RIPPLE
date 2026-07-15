@@ -434,6 +434,12 @@
       </div>
       <div class="modal-body" style="overflow-y: auto; flex: 1; padding-right: 8px;">
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Input the recorded rejection quantity for each station to conclude the shift.</p>
+        
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; background: rgba(245, 214, 198, 0.03); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <label for="shift-end-manpower" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--accent-peach);">Total Manpower Count</label>
+          <input type="number" id="shift-end-manpower" value="0" min="0" step="0.5" style="padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-mono); outline: none;">
+        </div>
+
         <div id="shift-end-stations-list" style="display: flex; flex-direction: column; gap: 12px;">
           <!-- Dynamically populated -->
         </div>

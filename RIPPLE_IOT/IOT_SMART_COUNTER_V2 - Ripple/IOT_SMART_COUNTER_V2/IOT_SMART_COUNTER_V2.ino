@@ -1360,6 +1360,7 @@ void send_mqtt() {
     values_json["m_state"] = state_cap;
     values_json["t_w_mins"] = ((int)(total_working_shift_mins * 100)) / 100.0;
     values_json["t_bd_mins"] = ((int)(total_bd_shift_mins * 100)) / 100.0;
+    values_json["wifi_rssi"] = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
     JsonArray stations = values_json.createNestedArray("stations");
 #if defined(DEVICE_SLAVE1)
     {

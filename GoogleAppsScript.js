@@ -99,16 +99,43 @@ function doPost(e) {
     
     // Check if the request is to email the Excel shift summary
     if (data && data.action === "send_email_report") {
-      sendEmailReport(data);
+      var emailSuccess = false;
+      var emailError = "";
+      try {
+        sendEmailReport(data);
+        emailSuccess = true;
+      } catch (err) {
+        emailError = err.toString();
+        console.error("Email report failed: " + emailError);
+      }
       
-      // Dispatch Telegram report via server-side Apps Script if text is supplied
+      var telegramSuccess = false;
+      var telegramError = "";
       if (data.telegram_text) {
-        sendTelegramReport(data.telegram_text);
+        try {
+          sendTelegramReport(data.telegram_text);
+          telegramSuccess = true;
+        } catch (err) {
+          telegramError = err.toString();
+          console.error("Telegram report failed: " + telegramError);
+        }
+      }
+      
+      // If both failed, return status error
+      if (!emailSuccess && (data.telegram_text && !telegramSuccess)) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "Both Email and Telegram failed. Email error: " + emailError + ". Telegram error: " + telegramError
+        })).setMimeType(ContentService.MimeType.JSON);
       }
       
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Email and Telegram dispatched successfully"
+        message: "Report processing complete.",
+        email_sent: emailSuccess,
+        email_error: emailError,
+        telegram_sent: telegramSuccess,
+        telegram_error: telegramError
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -150,6 +177,9 @@ function sendEmailReport(data) {
   sheet.appendRow(["Cup Size", data.shift_info.cup_size, "Qty/Pouch", data.shift_info.pouch_qty]);
   sheet.appendRow(["Outer Box Case", data.shift_info.outer_box]);
   sheet.appendRow(["Supervisor", data.shift_info.supervisor || "N/A", "Maintenance", data.shift_info.maintenance || "N/A"]);
+  if (data.shift_info.manpower !== undefined) {
+    sheet.appendRow(["Manpower Count", data.shift_info.manpower]);
+  }
   sheet.appendRow([""]); // empty spacer row
   
   // 3. Format header block
@@ -275,10 +305,13 @@ function sendTelegramReport(messageText) {
     "muteHttpExceptions": true
   };
   
-  try {
-    var response = UrlFetchApp.fetch(url, options);
-    console.log("Telegram Response: " + response.getContentText());
-  } catch (error) {
-    console.error("Telegram Error: " + error.toString());
+  var response = UrlFetchApp.fetch(url, options);
+  var responseText = response.getContentText();
+  console.log("Telegram Response: " + responseText);
+  
+  var resObj = JSON.parse(responseText);
+  if (!resObj || !resObj.ok) {
+    var desc = resObj && resObj.description ? resObj.description : "Unknown API error";
+    throw new Error("Telegram API - " + desc);
   }
 }
