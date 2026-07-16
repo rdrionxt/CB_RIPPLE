@@ -94,17 +94,13 @@ function handleIncomingMessage(topic, payload) {
     if (!slave) return;
 
     // Extract metadata from telemetry if present (e.g. from Slave 1)
-    if (data.order_no) {
+    // Only synchronize order/shift details if the shift is active globally on the dashboard
+    if (state.shiftActive && data.order_no) {
       let activeOrder = state.orders.find(o => o.active);
-      if (!activeOrder && state.orders.length > 0) {
-        activeOrder = state.orders[0];
-        activeOrder.active = true;
-      }
       if (activeOrder) {
         activeOrder.orderNumber = data.order_no;
         if (data.shift && data.shift !== "---") {
           activeOrder.shift = data.shift;
-          state.shiftActive = true;
         }
       }
     }
@@ -620,6 +616,10 @@ function setupEventListeners() {
   // Shift Control Buttons
   document.getElementById('btn-shift-start').addEventListener('click', openShiftStartModal);
   document.getElementById('btn-shift-end').addEventListener('click', openShiftEndModal);
+  const btnForceEnd = document.getElementById('btn-shift-force-end');
+  if (btnForceEnd) {
+    btnForceEnd.addEventListener('click', forceEndShift);
+  }
   document.getElementById('btn-bd-reason').addEventListener('click', openBDReasonModal);
   document.getElementById('btn-bd-log').addEventListener('click', openBreakdownLogModal);
 
@@ -2459,6 +2459,42 @@ function doneShiftEnd() {
     renderActiveSlaveView();
     updateGlobalStats();
   });
+}
+
+function forceEndShift() {
+  if (confirm("Are you sure you want to FORCE end/clear the current shift state without generating a report? This will reset all metrics immediately.")) {
+    state.shiftActive = false;
+    state.shiftWorkingMins = 0;
+    state.shiftBreakdownMins = 0;
+    state.shiftConfig = null;
+    state.breakdownLogs = [];
+    state.orders.forEach(o => o.active = false);
+
+    // Reset all stations
+    state.slaves.forEach(slave => {
+      slave.stations.forEach(station => {
+        station.actual = 0;
+        station.actualRaw = 0;
+        station.target = 0;
+        station.rejectionQty = 0;
+        station.speed = 0;
+        station.workingMins = 0;
+        station.breakdownMins = 0;
+        station.status = 'Idle';
+        station.breakdownReason = '';
+        station.notes = '';
+      });
+    });
+
+    saveStateToLocalStorage();
+    updateShiftButtons();
+    updateActiveOrderStrip();
+    renderOrderDirectory();
+    renderActiveSlaveView();
+    updateGlobalStats();
+    addLog('System', 'Shift force ended/cleared by user.', 'warning');
+    alert('Shift force ended and reset successfully!');
+  }
 }
 
 function openBDReasonModal() {

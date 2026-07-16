@@ -93,7 +93,7 @@ function handleIncomingMessage(topic, payload) {
     if (!slave) return;
 
     // Extract metadata from telemetry if present (e.g. from Slave 1)
-    if (data.order_no) {
+    if (data.order_no && data.shift && data.shift !== "---") {
       let activeOrder = state.orders.find(o => o.active);
       if (!activeOrder && state.orders.length > 0) {
         activeOrder = state.orders[0];
@@ -101,10 +101,8 @@ function handleIncomingMessage(topic, payload) {
       }
       if (activeOrder) {
         activeOrder.orderNumber = data.order_no;
-        if (data.shift && data.shift !== "---") {
-          activeOrder.shift = data.shift;
-          state.shiftActive = true;
-        }
+        activeOrder.shift = data.shift;
+        state.shiftActive = true;
         
         // Use st-01 target as the active order target
         if (Array.isArray(data.stations)) {
