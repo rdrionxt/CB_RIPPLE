@@ -529,12 +529,12 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStateFromLocalStorage();
 
   // Check for auto-submit if shift was left active from a previous day
-  if (state.shiftActive) {
-    const activeOrder = state.orders.find(o => o.active);
+  if (state.shiftActive && state.shiftStartTime) {
+    const startTimeStr = new Date(state.shiftStartTime).toISOString().split('T')[0];
     const todayStr = new Date().toISOString().split('T')[0];
-    if (activeOrder && activeOrder.date && activeOrder.date !== todayStr) {
+    if (startTimeStr !== todayStr) {
       console.warn("⚠️ Previous shift active: auto-submitting...");
-      addLog('System', 'Active shift left running from previous day (' + activeOrder.date + '). Auto-submitting report.', 'warning');
+      addLog('System', 'Active shift left running from previous day (' + startTimeStr + '). Auto-submitting report.', 'warning');
       doneShiftEnd();
     }
   }
