@@ -1941,6 +1941,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "High",
       impactColor: "var(--status-breakdown)",
       detail: `OEE is at ${currentReport.oee}%, which is below the target 80%. Main driver is ${currentReport.availability < currentReport.performance ? 'Line Availability (' + currentReport.availability.toFixed(1) + '%)' : 'Performance Rate (' + currentReport.performance.toFixed(1) + '%)'}. Focus on minimizing minor stops.`,
+      shortDetail: `• ⚠️ <b>OEE Alert:</b> ${currentReport.oee}% (Below target 80%)`,
       basis: `OEE is below 80% threshold (Current: ${currentReport.oee}% vs Historical Avg: ${avgOee.toFixed(1)}%)`
     });
   } else if (currentReport.oee < avgOee) {
@@ -1950,6 +1951,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "Medium",
       impactColor: "var(--status-idle)",
       detail: `OEE of ${currentReport.oee}% is below the historical average of ${avgOee.toFixed(1)}%. Review changeover times and check for any startup delays at the beginning of the shift.`,
+      shortDetail: `• 📉 <b>OEE Trend:</b> ${currentReport.oee}% (Below avg of ${avgOee.toFixed(1)}%)`,
       basis: `OEE is below historical average`
     });
   } else {
@@ -1959,6 +1961,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "Positive",
       impactColor: "var(--status-running)",
       detail: `Great job! This shift achieved ${currentReport.oee}% OEE, which meets or exceeds the historical average of ${avgOee.toFixed(1)}%. Maintain the current pacing and process settings.`,
+      shortDetail: `• 🏆 <b>OEE Perf:</b> ${currentReport.oee}% (Nominal/Good)`,
       basis: `OEE met historical standards`
     });
   }
@@ -1973,6 +1976,7 @@ function generateAISuggestions(currentReport, historicalReports) {
           impact: "High",
           impactColor: "var(--status-breakdown)",
           detail: `Station ${st.name} has a rejection rate of ${rejRate.toFixed(1)}% (${st.rejections} rejections out of ${st.actual} produced). Operator ${st.operator || 'N/A'} should inspect the mould alignment, feed settings, or raw material consistency.`,
+          shortDetail: `• ❌ <b>High Rejections (${st.name}):</b> ${rejRate.toFixed(1)}% (${st.rejections} pcs)`,
           basis: `Rejection rate ${rejRate.toFixed(1)}% exceeds standard 2.0% limit`
         });
       }
@@ -1983,13 +1987,18 @@ function generateAISuggestions(currentReport, historicalReports) {
     const bdMins = Math.round(st.breakdown_hrs * 60);
     if (st.breakdown_hrs > 0.5) {
       let remedy = "Schedule a preventative maintenance check on electrical and mechanical components before the next run.";
+      let shortRemedy = "inspect & schedule maintenance";
       if (st.bd_reason) {
-        if (st.bd_reason.toLowerCase().includes("mould") || st.bd_reason.toLowerCase().includes("pin")) {
+        const bdLower = st.bd_reason.toLowerCase();
+        if (bdLower.includes("mould") || bdLower.includes("pin")) {
           remedy = `Inspect mold alignment, check pins and brass components for wear, and apply lubrication.`;
-        } else if (st.bd_reason.toLowerCase().includes("motor") || st.bd_reason.toLowerCase().includes("conveyer")) {
+          shortRemedy = "check mold/pin alignment & wear";
+        } else if (bdLower.includes("motor") || bdLower.includes("conveyer") || bdLower.includes("conveyor")) {
           remedy = `Inspect motor wiring, check belt tensioning, and check conveyor bearings.`;
-        } else if (st.bd_reason.toLowerCase().includes("sensor")) {
+          shortRemedy = "inspect conveyor motor brushes & belt";
+        } else if (bdLower.includes("sensor")) {
           remedy = `Clean sensor optical path, check sensor alignment, and verify electrical connection stability.`;
+          shortRemedy = "clean optics & align sensor";
         }
       }
       suggestions.push({
@@ -1998,6 +2007,7 @@ function generateAISuggestions(currentReport, historicalReports) {
         impact: "High",
         impactColor: "var(--status-breakdown)",
         detail: `Downtime of ${bdMins} minutes was recorded at ${st.name} due to "${st.bd_reason || 'Unknown breakdown'}". ${remedy}`,
+        shortDetail: `• 🛠️ <b>BD Rec (${st.name}):</b> ${bdMins}m downtime - ${shortRemedy}`,
         basis: `Breakdown time exceeded 30 minutes`
       });
     }
@@ -2020,6 +2030,7 @@ function generateAISuggestions(currentReport, historicalReports) {
         impact: "Medium",
         impactColor: "var(--status-idle)",
         detail: `Station ${lowestSt.name} is the primary production bottleneck, achieving only ${lowestEff}% of its target (${lowestSt.net.toLocaleString()} net output vs ${lowestSt.target.toLocaleString()} target). Analyze operator pacing or check if upstream material supply is choking this station.`,
+        shortDetail: `• ⚡ <b>Bottleneck:</b> ${lowestSt.name} (${lowestEff}% Eff)`,
         basis: `Lowest production efficiency on the line (${lowestEff}%)`
       });
     }
@@ -2043,6 +2054,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "Positive",
       impactColor: "var(--status-running)",
       detail: `Operator ${bestOp} at ${bestOpStation} maintained the best production efficiency of ${bestOpEff}% in this shift. Recognize their high performance!`,
+      shortDetail: `• 👤 <b>Best Operator:</b> ${bestOp} (${bestOpStation}) - ${bestOpEff}%`,
       basis: `Highest production efficiency among all active stations`
     });
   }
@@ -2067,6 +2079,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "Positive",
       impactColor: "var(--status-running)",
       detail: `Station ${bestStation.name} performed exceptionally well, achieving ${bestStation.prod_efficiency}% efficiency with ${bestStation.actual.toLocaleString()} output and only ${(bestStation.breakdown_hrs * 60).toFixed(0)} minutes of breakdown.`,
+      shortDetail: `• ⭐ <b>Best Station:</b> ${bestStation.name} (${bestStation.prod_efficiency}% Eff, ${(bestStation.breakdown_hrs * 60).toFixed(0)}m BD)`,
       basis: `Highest efficiency-to-downtime ratio`
     });
   }
@@ -2088,15 +2101,20 @@ function generateAISuggestions(currentReport, historicalReports) {
       const count = historyLogCounts[key] || 0;
       if (count >= 1) {
         let solution = "Conduct a root cause analysis (RCA) and check for component wear or loose connections.";
+        let shortSolution = "conduct root cause analysis";
         const reasonLower = log.reason.toLowerCase();
         if (reasonLower.includes("mould") || reasonLower.includes("pin") || reasonLower.includes("cupping")) {
           solution = "Replace the guide pins, verify brass bushings tolerance, and recalibrate the locking alignment.";
+          shortSolution = "check mold pins/bushes alignment";
         } else if (reasonLower.includes("motor") || reasonLower.includes("conveyor")) {
           solution = "Replace the conveyor motor brushes/gearbox, check bearing play, and ensure belt tension is within limits.";
+          shortSolution = "inspect motor brushes & belt play";
         } else if (reasonLower.includes("sensor") || reasonLower.includes("miss")) {
           solution = "Relocate the sensor away from dust/vibration, check for shielded cabling to avoid EMF noise, or replace the photo-reflective sensor.";
+          shortSolution = "realign sensor & check noise shielding";
         } else if (reasonLower.includes("jam")) {
           solution = "Adjust guide rails clearance, check feed hopper gating, and ensure feed materials conform to sizing specifications.";
+          shortSolution = "adjust rail clearances";
         }
         
         suggestions.push({
@@ -2105,6 +2123,7 @@ function generateAISuggestions(currentReport, historicalReports) {
           impact: "Critical",
           impactColor: "var(--status-breakdown)",
           detail: `Breakdown "${log.reason}" has occurred ${count + 1} times in recent shifts at ${log.stationName}. SOLUTION: ${solution}`,
+          shortDetail: `• 🚨 <b>Recurring BD (${log.stationName}):</b> "${log.reason}" (${count + 1}x) - ${shortSolution}`,
           basis: `Breakdown matches recurring pattern in historical shift logs`
         });
       }
@@ -2118,6 +2137,7 @@ function generateAISuggestions(currentReport, historicalReports) {
       impact: "Info",
       impactColor: "var(--status-offline)",
       detail: "Line performance is nominal and stable. Perform routine cleaning and safety check sheets before beginning the next shift.",
+      shortDetail: "• ⚙️ <b>Maintenance:</b> perform routine checks & cleaning",
       basis: "No critical anomalies or bottlenecks detected"
     });
   }
@@ -2149,9 +2169,6 @@ function doneShiftEnd() {
     state.slaves.forEach(slave => {
       slave.stations.forEach(station => {
         station.rejectionQty = 0;
-        totalOutput += Math.floor(station.actual);
-        station.status = 'Idle';
-        station.speed = 0;
       });
     });
   } else {
@@ -2162,14 +2179,13 @@ function doneShiftEnd() {
       if (station) {
         station.rejectionQty = rejectionQty;
         totalRejections += rejectionQty;
-        totalOutput += Math.floor(station.actual);
-        
-        // Stop the station
-        station.status = 'Idle';
-        station.speed = 0;
       }
     });
   }
+
+  // Only box casing actual count (st-10) is displayed in the actual total output
+  const packingStation = findStationGlobal('st-10').station;
+  totalOutput = packingStation ? Math.floor(packingStation.actual) : 0;
 
   // End active shift
   state.shiftActive = false;
@@ -2256,8 +2272,11 @@ function doneShiftEnd() {
       const workHrs = (station.workingMins / 60).toFixed(2);
       const bdHrs = (station.breakdownMins / 60).toFixed(2);
 
+      // Average speed is calculated as actual output divided by working minutes during the shift
+      const avgSpeed = station.workingMins > 0 ? parseFloat((actualInt / station.workingMins).toFixed(1)) : 0;
+
       summaryText += `<b>Station: ${escapeHTML(station.name)} (${escapeHTML(station.id)})</b>\n`;
-      summaryText += `👤 Op: ${escapeHTML(station.operator)} | ⚡ Spd: ${station.speed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
+      summaryText += `👤 Op: ${escapeHTML(station.operator)} | ⚡ Spd: ${avgSpeed} ${station.id === 'st-10' ? 'B/M' : 'P/M'}\n`;
       summaryText += `🎯 Tar: ${targetInt.toLocaleString()} | 📦 Act: ${actualInt.toLocaleString()} | ❌ Rej: ${rejInt.toLocaleString()} (Net: ${netInt.toLocaleString()})\n`;
       summaryText += `📈 Eff: Prod ${prodEff}% / Mach ${machEff}%\n`;
       summaryText += `⏳ Work: ${workHrs}h | ⚠️ BD: ${bdHrs}h${station.breakdownReason ? ` [🚨 ${escapeHTML(station.breakdownReason)}]` : ''}\n`;
@@ -2307,6 +2326,9 @@ function doneShiftEnd() {
       const workHrs = (station.workingMins / 60).toFixed(2);
       const bdHrs = (station.breakdownMins / 60).toFixed(2);
 
+      // Average speed is calculated as actual output divided by working minutes during the shift
+      const avgSpeed = station.workingMins > 0 ? parseFloat((actualInt / station.workingMins).toFixed(1)) : 0;
+
       stationsData.push({
         id: station.id,
         name: station.name,
@@ -2315,7 +2337,7 @@ function doneShiftEnd() {
         actual: actualInt,
         rejections: rejInt,
         net: netInt,
-        speed: station.speed,
+        speed: avgSpeed,
         working_hrs: parseFloat(workHrs),
         breakdown_hrs: parseFloat(bdHrs),
         prod_efficiency: prodEff,
@@ -2364,11 +2386,10 @@ function doneShiftEnd() {
   const aiSuggestions = generateAISuggestions(currentReport, state.shiftReports.slice(0, -1));
 
   // Append suggestions to Telegram summary text
-  summaryText += `\n<b>✨ AI PRODUCTION RECOMMENDATIONS</b>\n`;
+  summaryText += `\n<b>✨ AI RECOMMENDATIONS</b>\n`;
   summaryText += `----------------------------------\n`;
-  aiSuggestions.slice(0, 3).forEach(s => {
-    summaryText += `${s.icon} <b>[${escapeHTML(s.category)}]</b> (Impact: ${escapeHTML(s.impact)})\n`;
-    summaryText += `• Suggestion: ${escapeHTML(s.detail)}\n`;
+  aiSuggestions.forEach(s => {
+    summaryText += `${s.shortDetail}\n`;
   });
   summaryText += `----------------------------------\n`;
 
@@ -2839,6 +2860,11 @@ function updateVirtualStations() {
   if (p2) p2.target = Math.round(T * 0.25);
   if (manual) {
     manual.target = Math.round(T * 0.50);
+    if (state.shiftActive && state.shiftStartTime) {
+      manual.workingMins = (Date.now() - state.shiftStartTime) / 60000;
+    } else {
+      manual.workingMins = 0;
+    }
     if (p1 && p2 && label) {
       manual.actual = Math.max(0, label.actual - p1.actual - p2.actual);
       manual.status = (p1.status === 'Running' || p2.status === 'Running') ? 'Running' : 'Idle';

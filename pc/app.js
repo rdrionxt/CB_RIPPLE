@@ -630,6 +630,11 @@ function updateVirtualStations() {
   if (p2) p2.target = Math.round(T * 0.25);
   if (manual) {
     manual.target = Math.round(T * 0.50);
+    if (state.shiftActive && state.shiftStartTime) {
+      manual.workingMins = (Date.now() - state.shiftStartTime) / 60000;
+    } else {
+      manual.workingMins = 0;
+    }
     if (p1 && p2 && label) {
       manual.actual = Math.max(0, label.actual - p1.actual - p2.actual);
       manual.status = (p1.status === 'Running' || p2.status === 'Running') ? 'Running' : 'Idle';
