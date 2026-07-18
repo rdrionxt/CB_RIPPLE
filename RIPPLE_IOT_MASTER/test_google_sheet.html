@@ -234,16 +234,14 @@
     </div>
     
     <button class="btn-submit" onclick="submitTestData()">🚀 Send Test Row</button>
+    <a href="#" id="direct-link-btn" target="_blank" class="btn-submit" style="display: block; text-align: center; text-decoration: none; background: #60a5fa; color: #000; margin-top: 10px;">🔗 Open in New Tab (Direct Response)</a>
     
     <div class="status-panel">
       <div class="status-title">Generated HTTP Request URL:</div>
       <div class="url-preview" id="url-output">https://script.google.com/macros/s/...</div>
-      <p class="info-note" style="margin-top: 12px;">Note: Google Sheets Web App runs redirect GET requests. The request is processed using a hidden iframe to prevent CORS errors on local files.</p>
+      <p class="info-note" style="margin-top: 12px;">Note: Google Web Apps run redirect GET requests. Click "Open in New Tab" to see the direct response ("OK" or "Error") from Google servers, or use "Send Test Row" to submit in the background.</p>
     </div>
   </div>
-
-  <!-- Hidden iframe for submitting Web App requests without CORS issues -->
-  <iframe id="hidden-submit-iframe" style="display:none; width:0; height:0; border:none;"></iframe>
 
   <script>
     // Pre-populate with current local date
@@ -283,7 +281,13 @@
     }
 
     function updatePreview() {
-      document.getElementById('url-output').innerText = buildRequestUrl();
+      const url = buildRequestUrl();
+      document.getElementById('url-output').innerText = url;
+      
+      const directLinkBtn = document.getElementById('direct-link-btn');
+      if (directLinkBtn) {
+        directLinkBtn.href = url;
+      }
     }
 
     // Add event listeners to input elements to update preview dynamically
@@ -304,9 +308,15 @@
       }
       
       const finalUrl = buildRequestUrl();
-      document.getElementById('hidden-submit-iframe').src = finalUrl;
       
-      alert("🚀 Request sent! If your Apps Script Web App URL is correct, a new row will appear on your Google Sheet in 2-3 seconds.");
+      // Perform background submission using fetch with no-cors mode to bypass CORS block
+      fetch(finalUrl, { mode: 'no-cors' })
+        .then(() => {
+          alert("🚀 Request sent to script! A new row will appear on your Google Sheet in a few seconds.");
+        })
+        .catch(err => {
+          alert("Error sending request: " + err);
+        });
     }
   </script>
 </body>
