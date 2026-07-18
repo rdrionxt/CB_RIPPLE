@@ -14,39 +14,97 @@
 var RECIPIENT_EMAIL = "riontechnologies2021@gmail.com";
 
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action === "check_update") {
-    var deviceId = e.parameter.device_id || "SL-001";
-    var scriptProperties = PropertiesService.getScriptProperties();
-    var latestVersion = scriptProperties.getProperty("firmware_version_" + deviceId) || "1.0.0";
-    var fileId = scriptProperties.getProperty("firmware_file_id_" + deviceId) || "";
-    
-    var response = {
-      version: latestVersion,
-      firmware_url: fileId ? "https://drive.google.com/uc?export=download&id=" + fileId : ""
-    };
-    
-    return ContentService.createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  if (e && e.parameter && e.parameter.action === "get_versions") {
-    var scriptProperties = PropertiesService.getScriptProperties();
-    var response = {};
-    var deviceIds = ["SL-001", "SL-002", "SL-003", "SL-004"];
-    deviceIds.forEach(function(id) {
-      response[id] = {
-        version: scriptProperties.getProperty("firmware_version_" + id) || "1.0.0",
-        file_id: scriptProperties.getProperty("firmware_file_id_" + id) || ""
-      };
-    });
-    
-    if (e.parameter.callback) {
-      return ContentService.createTextOutput(e.parameter.callback + "(" + JSON.stringify(response) + ")")
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  if (e && e.parameter) {
+    // 1. Handle device logging GET request from ESP32
+    if (e.parameter.date && e.parameter.shift && e.parameter.device_id) {
+      try {
+        var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+        if (sheet.getLastRow() === 0) {
+          sheet.appendRow([
+            "Date", "Shift", "Part information", "Station", "Operator", 
+            "Target count", "Actual count", "Speed", "Production efficiency", 
+            "Working hours", "Breakdown hours", "Machine efficiency", "Remarks"
+          ]);
+          sheet.getRange("A1:M1").setFontWeight("bold");
+        }
+        
+        var date = e.parameter.date || "";
+        var shift = e.parameter.shift || "";
+        var partInfo = e.parameter.part_name || "";
+        var station = e.parameter.device_name || e.parameter.device_id || "";
+        var operator = e.parameter.operator_name || "";
+        var targetCount = Number(e.parameter.target_count) || 0;
+        var actualCount = Number(e.parameter.shift_count) || 0;
+        var speed = Number(e.parameter.actual_speed) || 0;
+        var prodEff = Number(e.parameter.Prod_efficiency) || 0;
+        
+        var workingMins = Number(e.parameter.working_mins) || 0;
+        var workingHours = Number((workingMins / 60.0).toFixed(2));
+        
+        var bdMins = Number(e.parameter.bd_mins) || 0;
+        var bdHours = Number((bdMins / 60.0).toFixed(2));
+        
+        var machineEff = Number(e.parameter.efficiency) || 0;
+        var remarks = e.parameter.remarks || "";
+        
+        sheet.appendRow([
+          date,
+          shift,
+          partInfo,
+          station,
+          operator,
+          targetCount,
+          actualCount,
+          speed,
+          prodEff + "%",
+          workingHours,
+          bdHours,
+          machineEff + "%",
+          remarks
+        ]);
+        
+        return ContentService.createTextOutput("OK");
+      } catch (err) {
+        return ContentService.createTextOutput("Error: " + err.toString());
+      }
     }
     
-    return ContentService.createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
+    // 2. Handle OTA check_update GET request
+    if (e.parameter.action === "check_update") {
+      var deviceId = e.parameter.device_id || "SL-001";
+      var scriptProperties = PropertiesService.getScriptProperties();
+      var latestVersion = scriptProperties.getProperty("firmware_version_" + deviceId) || "1.0.0";
+      var fileId = scriptProperties.getProperty("firmware_file_id_" + deviceId) || "";
+      
+      var response = {
+        version: latestVersion,
+        firmware_url: fileId ? "https://drive.google.com/uc?export=download&id=" + fileId : ""
+      };
+      
+      return ContentService.createTextOutput(JSON.stringify(response))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 3. Handle get_versions GET request
+    if (e.parameter.action === "get_versions") {
+      var scriptProperties = PropertiesService.getScriptProperties();
+      var response = {};
+      var deviceIds = ["SL-001", "SL-002", "SL-003", "SL-004"];
+      deviceIds.forEach(function(id) {
+        response[id] = {
+          version: scriptProperties.getProperty("firmware_version_" + id) || "1.0.0",
+          file_id: scriptProperties.getProperty("firmware_file_id_" + id) || ""
+        };
+      });
+      
+      if (e.parameter.callback) {
+        return ContentService.createTextOutput(e.parameter.callback + "(" + JSON.stringify(response) + ")")
+          .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify(response))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
 
   return ContentService.createTextOutput("Google Apps Script for Ripple IoT is active. Send POST requests to write data or send reports.");
