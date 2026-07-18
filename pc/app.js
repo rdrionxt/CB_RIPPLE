@@ -149,9 +149,14 @@ function handleIncomingMessage(topic, payload) {
             let qty_per_pouches = 10;
             let inner_box_qty = 1;
             let outer_box_qty = 1;
-            if (state.shiftConfig && state.shiftConfig.outerBox) {
+            if (state.shiftConfig && state.shiftConfig.pouchQty) {
+              qty_per_pouches = state.shiftConfig.pouchQty;
+            } else if (state.shiftConfig && state.shiftConfig.outerBox) {
               const parts = state.shiftConfig.outerBox.split('_');
               qty_per_pouches = parseInt(parts[0]) || 10;
+            }
+            if (state.shiftConfig && state.shiftConfig.outerBox) {
+              const parts = state.shiftConfig.outerBox.split('_');
               inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
               outer_box_qty = parseInt(parts[2]) || 1;
             }
@@ -178,9 +183,10 @@ function handleIncomingMessage(topic, payload) {
           if (incomingSt.target !== undefined && Number(incomingSt.target) > 0) {
             station.target = Number(incomingSt.target) || 0;
           }
-          if (incomingSt.pending !== undefined) {
-            station.pending = Number(incomingSt.pending) || 0;
-          }
+          // Commented out to let the dashboard calculate pending quantity dynamically on the client side
+          // if (incomingSt.pending !== undefined) {
+          //   station.pending = Number(incomingSt.pending) || 0;
+          // }
           if (incomingSt.efficiency !== undefined) {
             station.efficiency = Number(incomingSt.efficiency) || 0;
           }
@@ -576,11 +582,11 @@ function getStationMultiplier(stationId) {
   }
   if (stationId === 'st-09') {
     let qty_per_pouches = 10;
-    if (state.shiftConfig && state.shiftConfig.outerBox) {
+    if (state.shiftConfig && state.shiftConfig.pouchQty) {
+      qty_per_pouches = state.shiftConfig.pouchQty;
+    } else if (state.shiftConfig && state.shiftConfig.outerBox) {
       const parts = state.shiftConfig.outerBox.split('_');
       qty_per_pouches = parseInt(parts[0]) || 10;
-    } else if (state.shiftConfig && state.shiftConfig.pouchQty) {
-      qty_per_pouches = state.shiftConfig.pouchQty;
     }
     return qty_per_pouches;
   }
@@ -646,9 +652,14 @@ function updateVirtualStations() {
     let qty_per_pouches = 10;
     let inner_box_qty = 1;
     let outer_box_qty = 1;
-    if (state.shiftConfig && state.shiftConfig.outerBox) {
+    if (state.shiftConfig && state.shiftConfig.pouchQty) {
+      qty_per_pouches = state.shiftConfig.pouchQty;
+    } else if (state.shiftConfig && state.shiftConfig.outerBox) {
       const parts = state.shiftConfig.outerBox.split('_');
       qty_per_pouches = parseInt(parts[0]) || 10;
+    }
+    if (state.shiftConfig && state.shiftConfig.outerBox) {
+      const parts = state.shiftConfig.outerBox.split('_');
       inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
       outer_box_qty = parseInt(parts[2]) || 1;
     }

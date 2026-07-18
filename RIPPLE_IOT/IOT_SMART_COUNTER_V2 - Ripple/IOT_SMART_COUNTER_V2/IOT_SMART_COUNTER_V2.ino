@@ -1614,6 +1614,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
 
   if (rcv_data.containsKey("pouch_qty")) {
     qty_per_pouch = rcv_data["pouch_qty"].as<uint16_t>();
+    box_pouch_qty = qty_per_pouch;
     framWrite8(POUCH_QTY_ADDR, (uint8_t)qty_per_pouch);
     Serial.printf("⚙ Saved qty_per_pouch via MQTT: %d\n", qty_per_pouch);
   }
@@ -1627,14 +1628,17 @@ void mqttCallback(char *topic, byte *payload, unsigned int len) {
       String iStr = outerBoxStr.substring(firstUnderscore + 1, secondUnderscore);
       String oStr = outerBoxStr.substring(secondUnderscore + 1);
       
-      box_pouch_qty = pStr.toInt();
+      if (!rcv_data.containsKey("pouch_qty")) {
+        box_pouch_qty = pStr.toInt();
+        qty_per_pouch = box_pouch_qty;
+      }
       box_inner_qty = (iStr == "Nill" || iStr == "NILL" || iStr == "nill") ? 1 : iStr.toInt();
       box_outer_qty = oStr.toInt();
       
-      framWrite8(POUCH_QTY_ADDR, (uint8_t)box_pouch_qty);
+      framWrite8(POUCH_QTY_ADDR, (uint8_t)qty_per_pouch);
       framWrite8(INNER_QTY_ADDR, (uint8_t)box_inner_qty);
       framWrite8(OUTER_QTY_ADDR, (uint8_t)box_outer_qty);
-      Serial.printf("⚙ Saved outer box config via MQTT: pouch=%d, inner=%d, outer=%d\n", box_pouch_qty, box_inner_qty, box_outer_qty);
+      Serial.printf("⚙ Saved outer box config via MQTT: pouch=%d, inner=%d, outer=%d\n", qty_per_pouch, box_inner_qty, box_outer_qty);
     }
   }
 
@@ -2448,7 +2452,23 @@ void fetchShiftSummary() {
   shiftSummary.date = dateStr;
   shiftSummary.shift_end_time = Time;
 
-  shiftSummary.shift_count = shift_count;
+#if defined(DEVICE_SLAVE3)
+  uint32_t multiplier = qty_per_pouch;
+#elif defined(DEVICE_SLAVE4)
+  uint32_t multiplier = box_pouch_qty;
+#else
+  uint32_t multiplier = 1;
+#endif
+
+  // Target count from dashboard targets config (distributed via active order), fallback to 50000
+  uint32_t target_val = station_targets[0];
+  if (target_val == 0) {
+    target_val = 50000;
+  }
+  shiftSummary.target_count = target_val;
+
+  // Actual count in pieces
+  shiftSummary.shift_count = shift_count * multiplier;
   shiftSummary.working_mins = total_working_shift_mins;
   shiftSummary.bd_mins = total_bd_shift_mins;
   shiftSummary.change_over_loss_mins = item_changeover_mins;
@@ -2460,14 +2480,12 @@ void fetchShiftSummary() {
     shiftSummary.efficiency = 0.0f;
   }
   
-  float shift_duration_mins = total_shift_time_mins;
-  shiftSummary.target_count = 50000;
   shiftSummary.machine_speed = (uint16_t)part_speed;
 
   shiftSummary.production_efficiency = (shiftSummary.shift_count * 100.0) / shiftSummary.target_count;
 
   if (shiftSummary.working_mins > 0.1f) {
-    shiftSummary.current_machine_speed = shiftSummary.shift_count / shiftSummary.working_mins;
+    shiftSummary.current_machine_speed = (float)shiftSummary.shift_count / shiftSummary.working_mins;
   } else {
     shiftSummary.current_machine_speed = 0.0f;
   }

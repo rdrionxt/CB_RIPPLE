@@ -134,18 +134,27 @@ function handleIncomingMessage(topic, payload) {
       if (slaveShiftName.toUpperCase() === activeShiftName.toUpperCase()) {
         slave.shiftAcknowledged = true;
       } else if (!slave.shiftAcknowledged) {
-        console.log(`Auto-triggering shift start config for slave: ${slave.id}`);
-        const firstOp = slave.stations.length > 0 ? slave.stations[0].operator : state.operatorName;
-        const stationOps = slave.stations.map(st => st.operator);
-        publishDeviceConfig(slave.id, {
-          shift: activeShiftName,
-          operator: firstOp,
-          operators: stationOps,
-          pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
-          outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
-          maintenance: (state.shiftConfig && state.shiftConfig.maintenance) ? state.shiftConfig.maintenance : "",
-          shift_start: true
-        });
+        // Only auto-trigger shift start config if the slave is NOT currently in an active shift (i.e. is "---" or empty)
+        // This prevents other dashboard instances (like a laptop viewer) from resetting a running slave.
+        if (slaveShiftName === "---" || slaveShiftName === "") {
+          console.log(`Auto-triggering shift start config for slave: ${slave.id}`);
+          const firstOp = slave.stations.length > 0 ? slave.stations[0].operator : state.operatorName;
+          const stationOps = slave.stations.map(st => st.operator);
+          publishDeviceConfig(slave.id, {
+            shift: activeShiftName,
+            operator: firstOp,
+            operators: stationOps,
+            pouch_qty: (state.shiftConfig && state.shiftConfig.pouchQty) ? state.shiftConfig.pouchQty : 10,
+            outer_box: (state.shiftConfig && state.shiftConfig.outerBox) ? state.shiftConfig.outerBox : "10_12_48",
+            maintenance: (state.shiftConfig && state.shiftConfig.maintenance) ? state.shiftConfig.maintenance : "",
+            shift_start: true
+          });
+        } else {
+          // If the slave is already in another shift, we mark it as acknowledged to prevent logs/retries,
+          // but we do NOT send a shift_start command to avoid resetting its counts.
+          console.warn(`Slave ${slave.id} is already in shift "${slaveShiftName}", but dashboard has "${activeShiftName}". Reset prevented.`);
+          slave.shiftAcknowledged = true;
+        }
       }
     }
     
@@ -160,9 +169,14 @@ function handleIncomingMessage(topic, payload) {
               let qty_per_pouches = 10;
               let inner_box_qty = 1;
               let outer_box_qty = 1;
-              if (state.shiftConfig && state.shiftConfig.outerBox) {
+              if (state.shiftConfig && state.shiftConfig.pouchQty) {
+                qty_per_pouches = state.shiftConfig.pouchQty;
+              } else if (state.shiftConfig && state.shiftConfig.outerBox) {
                 const parts = state.shiftConfig.outerBox.split('_');
                 qty_per_pouches = parseInt(parts[0]) || 10;
+              }
+              if (state.shiftConfig && state.shiftConfig.outerBox) {
+                const parts = state.shiftConfig.outerBox.split('_');
                 inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
                 outer_box_qty = parseInt(parts[2]) || 1;
               }
@@ -181,7 +195,8 @@ function handleIncomingMessage(topic, payload) {
             if (typeof incomingSt.breakdownMins === 'number') station.breakdownMins = incomingSt.breakdownMins;
             if (incomingSt.operator) station.operator = incomingSt.operator;
             if (typeof incomingSt.target === 'number' && incomingSt.target > 0) station.target = incomingSt.target;
-            if (typeof incomingSt.pending === 'number') station.pending = incomingSt.pending;
+            // Commented out to let the dashboard calculate pending quantity dynamically on the client side
+            // if (typeof incomingSt.pending === 'number') station.pending = incomingSt.pending;
             if (typeof incomingSt.efficiency === 'number') station.efficiency = incomingSt.efficiency;
             if (incomingSt.breakdownReason !== undefined) {
               if (incomingSt.breakdownReason && incomingSt.breakdownReason !== station.breakdownReason) {
@@ -799,11 +814,11 @@ function getStationMultiplier(stationId) {
   }
   if (stationId === 'st-09') {
     let qty_per_pouches = 10;
-    if (state.shiftConfig && state.shiftConfig.outerBox) {
+    if (state.shiftConfig && state.shiftConfig.pouchQty) {
+      qty_per_pouches = state.shiftConfig.pouchQty;
+    } else if (state.shiftConfig && state.shiftConfig.outerBox) {
       const parts = state.shiftConfig.outerBox.split('_');
       qty_per_pouches = parseInt(parts[0]) || 10;
-    } else if (state.shiftConfig && state.shiftConfig.pouchQty) {
-      qty_per_pouches = state.shiftConfig.pouchQty;
     }
     return qty_per_pouches;
   }
@@ -2876,9 +2891,14 @@ function updateVirtualStations() {
     let qty_per_pouches = 10;
     let inner_box_qty = 1;
     let outer_box_qty = 1;
-    if (state.shiftConfig && state.shiftConfig.outerBox) {
+    if (state.shiftConfig && state.shiftConfig.pouchQty) {
+      qty_per_pouches = state.shiftConfig.pouchQty;
+    } else if (state.shiftConfig && state.shiftConfig.outerBox) {
       const parts = state.shiftConfig.outerBox.split('_');
       qty_per_pouches = parseInt(parts[0]) || 10;
+    }
+    if (state.shiftConfig && state.shiftConfig.outerBox) {
+      const parts = state.shiftConfig.outerBox.split('_');
       inner_box_qty = parts[1] === 'Nill' ? 1 : (parseInt(parts[1]) || 1);
       outer_box_qty = parseInt(parts[2]) || 1;
     }
