@@ -1886,8 +1886,23 @@ function sendTelegramSummary(messageText) {
       console.log("✅ Telegram shift summary sent successfully");
       addLog("Telegram", "Shift summary sent to bot channel", "success");
     } else {
-      console.error("❌ Telegram API error:", data);
-      addLog("Telegram", "Failed to send summary: " + data.description, "alert");
+      console.warn("⚠️ HTML parse failed on Telegram API. Retrying plain text fallback...", data);
+      const plainText = messageText.replace(/<[^>]*>/g, "");
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: plainText })
+      })
+      .then(res => res.json())
+      .then(fallbackData => {
+        if (fallbackData.ok) {
+          console.log("✅ Telegram plain text fallback sent successfully");
+          addLog("Telegram", "Shift summary sent to bot channel (plain text)", "success");
+        } else {
+          console.error("❌ Telegram API error:", fallbackData);
+          addLog("Telegram", "Failed to send summary: " + fallbackData.description, "alert");
+        }
+      });
     }
   })
   .catch(err => {
@@ -2513,7 +2528,10 @@ function doneShiftEnd() {
     ai_suggestions: aiSuggestions.map(s => `[${s.category}] ${s.detail}`).join('\n')
   };
 
-  // Dispatch the email request (which now also sends the Telegram notification server-side)
+  // 1. Dispatch direct Telegram summary from browser (guarantees instant delivery)
+  sendTelegramSummary(summaryText);
+
+  // 2. Dispatch to Apps Script for Google Sheet logging
   sendEmailReportViaAppsScript(emailData);
 
   // Open the AI suggestions popup modal dialog
