@@ -1912,7 +1912,7 @@ function sendTelegramSummary(messageText) {
 }
 
 function sendEmailReportViaAppsScript(emailData) {
-  const url = "https://script.google.com/macros/s/AKfycbwfxCr_VL1EbuHDgifW-6TGM-afOIGbc6H3fcC107g2o9bRhC7P_1nsmXNx5VpHaAz0/exec";
+  const url = "https://script.google.com/macros/s/AKfycbyzG_rmYSyUC4QPpJvKCAyXOztT5pdHH--bOUzH0mCZc8N_2x6HFLljoO5-LQh4-3T3/exec";
   
   fetch(url, {
     method: "POST",
