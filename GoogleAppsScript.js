@@ -192,13 +192,14 @@ function doPost(e) {
       // Log all stations rows directly to the active Google Sheet tab
       logAllStationsToMasterSheet(data);
 
-      var emailSuccess = false;
+      var emailSuccess = true;
       var emailError = "";
       if (typeof ENABLE_EMAIL_REPORT !== "undefined" && ENABLE_EMAIL_REPORT) {
         try {
           sendEmailReport(data);
           emailSuccess = true;
         } catch (err) {
+          emailSuccess = false;
           emailError = err.toString();
           console.error("Email report failed: " + emailError);
         }
@@ -217,16 +218,6 @@ function doPost(e) {
           console.error("Telegram report failed: " + telegramError);
         }
       }
-
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        message: "Report processing complete.",
-        email_sent: emailSuccess,
-        email_error: emailError,
-        telegram_sent: telegramSuccess,
-        telegram_error: telegramError
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
