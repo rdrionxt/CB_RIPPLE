@@ -11,12 +11,11 @@
  */
 
 // Global config
-var ENABLE_EMAIL_REPORT = false; // Set to false to STOP sending email reports
+var ENABLE_EMAIL_REPORT = false; // Set to false to STOP automatic shift end email reports
 var RECIPIENT_EMAIL = "riontechnologies2021@gmail.com";
 
-// Optional: Paste your new Google Sheet ID here (from URL: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit)
-// Leave empty ("") to automatically use the active bound spreadsheet.
-var SPREADSHEET_ID = "";
+// Paste your Google Sheet ID here (from URL: https://docs.google.com/spreadsheets/d/1RI99AFIXIev6DNcmo4PH0_9uR4c5oImPi_hnLqXwsFw/edit)
+var SPREADSHEET_ID = "1RI99AFIXIev6DNcmo4PH0_9uR4c5oImPi_hnLqXwsFw";
 
 function getTargetSpreadsheet() {
   if (typeof SPREADSHEET_ID !== "undefined" && SPREADSHEET_ID && SPREADSHEET_ID.trim() !== "") {
@@ -227,6 +226,22 @@ function doPost(e) {
         telegram_sent: telegramSuccess,
         telegram_error: telegramError
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Check if the request is to compile and email the Excel workbook (excluding Overall summary)
+    if (data && data.action === "send_compiled_excel") {
+      try {
+        sendCompiledExcelReport(data.email);
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          message: "Compiled Excel report sent successfully to " + (data.email || RECIPIENT_EMAIL)
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "Failed to send compiled Excel report: " + err.toString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
     // Fallback: If it's a standard parameter write or telemetry logging, place your existing sheet write logic here:
@@ -524,6 +539,113 @@ function sendTelegramReport(messageText) {
     if (!fallbackObj || !fallbackObj.ok) {
       var desc = fallbackObj && fallbackObj.description ? fallbackObj.description : "Unknown API error";
       throw new Error("Telegram API - " + desc);
+    }
+  }
+}
+
+/**
+ * Custom UI Menu added when opening the Google Sheet.
+ * Allows manually sending the Compiled Excel Report right from Google Sheets interface.
+ */
+function onOpen() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.createMenu('Ripple IoT')
+      .addItem('📧 Email Compiled Excel Report (Excl. Summary)', 'menuSendCompiledExcelReport')
+      .addToUi();
+  } catch (e) {
+    // Menu creation ignored if running via Web App trigger context
+  }
+}
+
+function menuSendCompiledExcelReport() {
+  var ui = SpreadsheetApp.getUi();
+  var recipient = RECIPIENT_EMAIL;
+  var response = ui.prompt(
+    'Email Compiled Excel Report',
+    'Enter recipient email address (leave blank for ' + recipient + '):',
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() === ui.Button.OK) {
+    var emailInput = response.getResponseText().trim();
+    var email = emailInput !== "" ? emailInput : recipient;
+    sendCompiledExcelReport(email);
+    ui.alert('Success', 'Excel report (excluding Overall summary) emailed successfully to ' + email, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Compiles the active Google Sheet into an Excel (.xlsx) file, EXCLUDING the "Overall summary" sheet,
+ * and emails it as an attachment to the specified recipient list.
+ */
+function sendCompiledExcelReport(customRecipient) {
+  var targetSs = getTargetSpreadsheet();
+  if (!targetSs) {
+    console.error("No active or target spreadsheet found.");
+    throw new Error("No active or target spreadsheet found.");
+  }
+
+  var dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  var fileName = "Ripple_IoT_Counter_Report_" + dateStr;
+
+  // 1. Create a copy of the spreadsheet in Drive to manipulate without altering the live master sheet
+  var masterFile = DriveApp.getFileById(targetSs.getId());
+  var tempCopyFile = masterFile.makeCopy("TEMP_EXCEL_EXPORT_" + Date.now());
+  var tempSs = SpreadsheetApp.openById(tempCopyFile.getId());
+
+  try {
+    // 2. Find and delete the "Overall summary" sheet from the temporary copy
+    var sheets = tempSs.getSheets();
+    for (var i = 0; i < sheets.length; i++) {
+      var sheetName = sheets[i].getName().trim();
+      if (sheetName.toLowerCase() === "overall summary" || sheetName.toLowerCase().startsWith("overall")) {
+        if (tempSs.getSheets().length > 1) {
+          tempSs.deleteSheet(sheets[i]);
+          console.log("Excluded sheet from Excel export: " + sheetName);
+        }
+      }
+    }
+
+    // Flush changes to temporary spreadsheet
+    SpreadsheetApp.flush();
+
+    // 3. Export the modified temporary spreadsheet as .xlsx (Microsoft Excel format)
+    var url = "https://docs.google.com/spreadsheets/d/" + tempSs.getId() + "/export?format=xlsx";
+    var token = ScriptApp.getOAuthToken();
+
+    var response = UrlFetchApp.fetch(url, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      },
+      muteHttpExceptions: true
+    });
+
+    var excelBlob = response.getBlob().setName(fileName + ".xlsx");
+
+    // 4. Send email with the compiled Excel attachment
+    var recipient = customRecipient || RECIPIENT_EMAIL || "riontechnologies2021@gmail.com";
+    var subject = "📊 Ripple IoT Production Excel Report: " + dateStr;
+    var body = "Hello Team,\n\nPlease find attached the compiled Ripple IoT Production Summary Excel Spreadsheet for " + dateStr + ".\n\nNote: Includes all stationwise and cumulative daily/monthly tabs, excluding Overall summary.\n\nBest Regards,\nIRIS Ripple IoT Operations System";
+
+    MailApp.sendEmail({
+      to: recipient,
+      subject: subject,
+      body: body,
+      attachments: [excelBlob]
+    });
+
+    console.log("Compiled Excel report successfully emailed to " + recipient);
+
+  } catch (err) {
+    console.error("Error generating compiled Excel report: " + err.toString());
+    throw err;
+  } finally {
+    // 5. Clean up temporary copy file from Google Drive
+    try {
+      tempCopyFile.setTrashed(true);
+    } catch (e) {
+      console.warn("Could not trash temp file: " + e.toString());
     }
   }
 }
