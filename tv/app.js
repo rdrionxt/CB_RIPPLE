@@ -1866,7 +1866,7 @@ function escapeHTML(val) {
 
 function sendTelegramSummary(messageText) {
   const token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
-  const chatId = "-5005894782";
+  const chatId = "-1003742281464";
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   
   fetch(url, {
@@ -1943,7 +1943,7 @@ function sendEmailReportViaAppsScript(emailData) {
 
 function sendTelegramDirectFallback(messageText) {
   const token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
-  const chatId = "-5005894782";
+  const chatId = "-1003742281464";
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   
   fetch(url, {

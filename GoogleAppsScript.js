@@ -489,7 +489,7 @@ function sendEmailReport(data) {
  */
 function sendTelegramReport(messageText) {
   var token = "8786500968:AAFoDJA1m_uoOIQ1zSPBAfAJne9Xk-KmBb0";
-  var chatId = "-5005894782";
+  var chatId = "-1003742281464";
   var url = "https://api.telegram.org/bot" + token + "/sendMessage";
 
   var payload = {
