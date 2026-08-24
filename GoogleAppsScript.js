@@ -13,12 +13,29 @@
 // Global config
 var RECIPIENT_EMAIL = "riontechnologies2021@gmail.com";
 
+// Optional: Paste your new Google Sheet ID here (from URL: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit)
+// Leave empty ("") to automatically use the active bound spreadsheet.
+var SPREADSHEET_ID = "";
+
+function getTargetSpreadsheet() {
+  if (typeof SPREADSHEET_ID !== "undefined" && SPREADSHEET_ID && SPREADSHEET_ID.trim() !== "") {
+    try {
+      return SpreadsheetApp.openById(SPREADSHEET_ID.trim());
+    } catch (err) {
+      console.error("Failed to open spreadsheet by SPREADSHEET_ID: " + err.toString());
+    }
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function doGet(e) {
   if (e && e.parameter) {
     // 1. Handle device logging GET request from ESP32
     if (e.parameter.date && e.parameter.shift && e.parameter.device_id) {
       try {
-        var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+        var activeSs = getTargetSpreadsheet();
+        var sheet = activeSs ? activeSs.getActiveSheet() : null;
+        if (!sheet) return ContentService.createTextOutput("Error: Target Sheet not found");
         if (sheet.getLastRow() === 0) {
           sheet.appendRow([
             "Date", "Shift", "Part information", "Station", "Operator",
@@ -236,7 +253,7 @@ function doPost(e) {
  */
 function logAllStationsToMasterSheet(data) {
   try {
-    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    var activeSs = getTargetSpreadsheet();
     if (!activeSs) return;
     var sheet = activeSs.getActiveSheet();
     if (!sheet) return;
