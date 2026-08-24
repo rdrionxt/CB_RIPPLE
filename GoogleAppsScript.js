@@ -11,6 +11,7 @@
  */
 
 // Global config
+var ENABLE_EMAIL_REPORT = false; // Set to false to STOP sending email reports
 var RECIPIENT_EMAIL = "riontechnologies2021@gmail.com";
 
 // Optional: Paste your new Google Sheet ID here (from URL: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit)
@@ -193,12 +194,16 @@ function doPost(e) {
 
       var emailSuccess = false;
       var emailError = "";
-      try {
-        sendEmailReport(data);
-        emailSuccess = true;
-      } catch (err) {
-        emailError = err.toString();
-        console.error("Email report failed: " + emailError);
+      if (typeof ENABLE_EMAIL_REPORT !== "undefined" && ENABLE_EMAIL_REPORT) {
+        try {
+          sendEmailReport(data);
+          emailSuccess = true;
+        } catch (err) {
+          emailError = err.toString();
+          console.error("Email report failed: " + emailError);
+        }
+      } else {
+        console.log("Email report sending is disabled (ENABLE_EMAIL_REPORT = false).");
       }
 
       var telegramSuccess = false;
@@ -213,13 +218,15 @@ function doPost(e) {
         }
       }
 
-      // If both failed, return status error
-      if (!emailSuccess && (data.telegram_text && !telegramSuccess)) {
-        return ContentService.createTextOutput(JSON.stringify({
-          status: "error",
-          message: "Both Email and Telegram failed. Email error: " + emailError + ". Telegram error: " + telegramError
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Report processing complete.",
+        email_sent: emailSuccess,
+        email_error: emailError,
+        telegram_sent: telegramSuccess,
+        telegram_error: telegramError
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
