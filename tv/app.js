@@ -1897,7 +1897,7 @@ function sendTelegramSummary(messageText) {
 }
 
 function sendEmailReportViaAppsScript(emailData) {
-  const url = "https://script.google.com/macros/s/AKfycbzTZp4A0S7rVeh01i4VHzjpN-Q_nYOjCGabwJqK01OchLXehsoJmqxzqLBdCjRF1cjF/exec";
+  const url = "https://script.google.com/macros/s/AKfycbwfxCr_VL1EbuHDgifW-6TGM-afOIGbc6H3fcC107g2o9bRhC7P_1nsmXNx5VpHaAz0/exec";
   
   fetch(url, {
     method: "POST",
