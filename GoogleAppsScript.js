@@ -511,7 +511,19 @@ function sendTelegramReport(messageText) {
 
   var resObj = JSON.parse(responseText);
   if (!resObj || !resObj.ok) {
-    var desc = resObj && resObj.description ? resObj.description : "Unknown API error";
-    throw new Error("Telegram API - " + desc);
+    console.warn("HTML parse failed on Telegram. Retrying without HTML formatting...");
+    var plainText = messageText.replace(/<[^>]*>/g, "");
+    payload.text = plainText;
+    delete payload.parse_mode;
+
+    options.payload = JSON.stringify(payload);
+    var fallbackRes = UrlFetchApp.fetch(url, options);
+    var fallbackText = fallbackRes.getContentText();
+    console.log("Telegram Plain Text Fallback Response: " + fallbackText);
+    var fallbackObj = JSON.parse(fallbackText);
+    if (!fallbackObj || !fallbackObj.ok) {
+      var desc = fallbackObj && fallbackObj.description ? fallbackObj.description : "Unknown API error";
+      throw new Error("Telegram API - " + desc);
+    }
   }
 }

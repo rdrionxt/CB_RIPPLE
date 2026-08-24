@@ -1963,8 +1963,21 @@ function sendTelegramDirectFallback(messageText) {
       console.log("✅ Fallback Telegram report sent successfully client-side!");
       addLog("Telegram", "Fallback Telegram summary sent successfully", "success");
     } else {
-      console.error("❌ Fallback Telegram API error:", data);
-      addLog("Telegram", `API error sending fallback: ${data.description}`, "alert");
+      console.warn("⚠️ HTML parse failed on Telegram fallback. Retrying plain text...", data);
+      const plainText = messageText.replace(/<[^>]*>/g, "");
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: plainText })
+      })
+      .then(res => res.json())
+      .then(fallbackData => {
+        if (fallbackData.ok) {
+          addLog("Telegram", "Fallback plain text summary sent successfully", "success");
+        } else {
+          addLog("Telegram", `API error sending fallback: ${fallbackData.description}`, "alert");
+        }
+      });
     }
   })
   .catch(err => {
