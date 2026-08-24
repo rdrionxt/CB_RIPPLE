@@ -309,8 +309,10 @@ const state = {
   shiftConfig: null,
   shiftStartTime: null,
   orders: [
-    { id: 'ord-01', orderNumber: 'ORD-2026-001', date: '2026-06-15', shift: 'Shift A', targetQty: 80000, active: false },
-    { id: 'ord-02', orderNumber: 'ORD-2026-002', date: '2026-06-15', shift: 'Shift B', targetQty: 100000, active: false }
+    { id: 'ord-shift-a', orderNumber: 'ORD-SHIFT-A', date: new Date().toISOString().split('T')[0], shift: 'Shift A', targetQty: 80000, active: true },
+    { id: 'ord-shift-b', orderNumber: 'ORD-SHIFT-B', date: new Date().toISOString().split('T')[0], shift: 'Shift B', targetQty: 80000, active: false },
+    { id: 'ord-shift-c', orderNumber: 'ORD-SHIFT-C', date: new Date().toISOString().split('T')[0], shift: 'Shift C', targetQty: 80000, active: false },
+    { id: 'ord-general', orderNumber: 'ORD-GENERAL', date: new Date().toISOString().split('T')[0], shift: 'General', targetQty: 80000, active: false }
   ],
   slaves: [
     {

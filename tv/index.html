@@ -509,7 +509,7 @@
   <div class="modal-overlay" id="create-order-modal">
     <div class="modal-content" style="max-width: 450px; max-height: 80vh; display: flex; flex-direction: column;">
       <div class="modal-header">
-        <h3 class="modal-title" id="order-modal-title">Create Production Order</h3>
+        <h3 class="modal-title" id="order-modal-title">Edit Production Order</h3>
         <button class="modal-close" id="create-order-close-btn">&times;</button>
       </div>
       <div class="modal-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px;">
@@ -522,11 +522,12 @@
           <input type="date" id="order-date-input" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-white); border-radius: var(--radius-sm); font-family: var(--font-sans); outline: none;">
         </div>
         <div class="form-group">
-          <label for="order-shift-input">Shift Name</label>
-          <select id="order-shift-input" class="breakdown-select" style="width: 100%; padding: 10px;">
-            <option value="Shift A">Shift A (Morning)</option>
-            <option value="Shift B">Shift B (Afternoon)</option>
-            <option value="Shift C">Shift C (Night)</option>
+          <label for="order-shift-input">Shift Name (Fixed)</label>
+          <select id="order-shift-input" class="breakdown-select" style="width: 100%; padding: 10px; opacity: 0.7; cursor: not-allowed;" disabled>
+            <option value="Shift A">Shift A</option>
+            <option value="Shift B">Shift B</option>
+            <option value="Shift C">Shift C</option>
+            <option value="General">General</option>
           </select>
         </div>
         <div class="form-group">
@@ -535,7 +536,7 @@
         </div>
       </div>
       <div class="btn-container" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
-        <button class="btn-primary" id="create-order-done-btn">Done & Create Order</button>
+        <button class="btn-primary" id="create-order-done-btn">Save Changes</button>
         <button class="btn-secondary" id="create-order-cancel-btn">Cancel</button>
       </div>
     </div>

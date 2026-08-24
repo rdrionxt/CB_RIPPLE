@@ -30,22 +30,36 @@ function doGet(e) {
 
         var date = e.parameter.date || "";
         var shift = e.parameter.shift || "";
-        var partInfo = e.parameter.part_name || "";
-        var station = e.parameter.device_name || e.parameter.device_id || "";
-        var operator = e.parameter.operator_name || "";
-        var targetCount = Number(e.parameter.target_count) || 0;
-        var actualCount = Number(e.parameter.shift_count) || 0;
-        var speed = Number(e.parameter.actual_speed) || 0;
-        var prodEff = Number(e.parameter.Prod_efficiency) || 0;
+        var partInfo = e.parameter.part_info || e.parameter.part_information || e.parameter.part_name || "";
+        var station = e.parameter.station || e.parameter.device_name || e.parameter.device_id || "";
+        var operator = e.parameter.operator || e.parameter.operator_name || "";
+        var targetCount = Number(e.parameter.target_count || e.parameter.target) || 0;
+        var actualCount = Number(e.parameter.actual_count || e.parameter.shift_count || e.parameter.actual) || 0;
+        var speed = Number(e.parameter.speed || e.parameter.actual_speed) || 0;
+        
+        var prodEffRaw = e.parameter.production_efficiency || e.parameter.prod_efficiency || e.parameter.Prod_efficiency || 0;
+        var prodEffStr = typeof prodEffRaw === "string" && prodEffRaw.includes("%") ? prodEffRaw : (Number(prodEffRaw) + "%");
 
-        var workingMins = Number(e.parameter.working_mins) || 0;
-        var workingHours = Number((workingMins / 60.0).toFixed(2));
+        var workingHours = 0;
+        if (e.parameter.working_hours !== undefined) {
+          workingHours = Number(e.parameter.working_hours);
+        } else {
+          var workingMins = Number(e.parameter.working_mins) || 0;
+          workingHours = Number((workingMins / 60.0).toFixed(2));
+        }
 
-        var bdMins = Number(e.parameter.bd_mins) || 0;
-        var bdHours = Number((bdMins / 60.0).toFixed(2));
+        var bdHours = 0;
+        if (e.parameter.breakdown_hours !== undefined) {
+          bdHours = Number(e.parameter.breakdown_hours);
+        } else {
+          var bdMins = Number(e.parameter.bd_mins) || 0;
+          bdHours = Number((bdMins / 60.0).toFixed(2));
+        }
 
-        var machineEff = Number(e.parameter.efficiency) || 0;
-        var remarks = e.parameter.remarks || "";
+        var machineEffRaw = e.parameter.machine_efficiency || e.parameter.efficiency || 0;
+        var machineEffStr = typeof machineEffRaw === "string" && machineEffRaw.includes("%") ? machineEffRaw : (Number(machineEffRaw).toFixed(2) + "%");
+        
+        var remarks = e.parameter.remarks || "Shift ended successfully. Checked box counts.";
 
         sheet.appendRow([
           date,
@@ -56,10 +70,10 @@ function doGet(e) {
           targetCount,
           actualCount,
           speed,
-          prodEff + "%",
+          prodEffStr,
           workingHours,
           bdHours,
-          machineEff + "%",
+          machineEffStr,
           remarks
         ]);
 
@@ -155,8 +169,11 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Check if the request is to email the Excel shift summary
+    // Check if the request is to email the Excel shift summary & log to Google Sheet
     if (data && data.action === "send_email_report") {
+      // Log all stations rows directly to the active Google Sheet tab
+      logAllStationsToMasterSheet(data);
+
       var emailSuccess = false;
       var emailError = "";
       try {
@@ -215,6 +232,84 @@ function doPost(e) {
 }
 
 /**
+ * Logs all station records directly to the bound Google Sheet tab in 13-column format upon Shift End.
+ */
+function logAllStationsToMasterSheet(data) {
+  try {
+    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    if (!activeSs) return;
+    var sheet = activeSs.getActiveSheet();
+    if (!sheet) return;
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "Date", "Shift", "Part information", "Station", "Operator",
+        "Target count", "Actual count", "Speed", "Production efficiency",
+        "Working hours", "Breakdown hours", "Machine efficiency", "Remarks"
+      ]);
+      sheet.getRange("A1:M1").setFontWeight("bold");
+    }
+
+    var dateStr = data.shift_info ? (data.shift_info.date || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+    var shiftName = data.shift_info ? (data.shift_info.shift || "Shift A") : "Shift A";
+
+    if (Array.isArray(data.stations)) {
+      data.stations.forEach(function (st) {
+        var dateVal = st.date || dateStr;
+        var shiftVal = st.shift || shiftName;
+        var partVal = st.part_info || st.part_information || (data.shift_info ? ("Size - " + (data.shift_info.cup_size || "13mm") + ", P-" + (data.shift_info.pouch_qty || "30") + ", Box - " + (data.shift_info.outer_box || "12 * 20")) : "T-light candle");
+        var stationVal = st.station || st.name || st.id;
+        var operatorVal = st.operator || "";
+        var targetVal = st.target_count !== undefined ? st.target_count : (st.target !== undefined ? st.target : 0);
+        var actualVal = st.actual_count !== undefined ? st.actual_count : (st.actual !== undefined ? st.actual : 0);
+        var speedVal = st.speed !== undefined ? st.speed : 0;
+        
+        var prodEffVal = "";
+        if (st.prod_efficiency !== undefined) {
+          prodEffVal = typeof st.prod_efficiency === "number" ? (st.prod_efficiency + "%") : String(st.prod_efficiency);
+        } else if (st.production_efficiency !== undefined) {
+          prodEffVal = typeof st.production_efficiency === "number" ? (st.production_efficiency + "%") : String(st.production_efficiency);
+        } else {
+          prodEffVal = "0%";
+        }
+        if (!prodEffVal.endsWith("%")) prodEffVal += "%";
+
+        var workingHrsVal = st.working_hours !== undefined ? st.working_hours : (st.working_hrs !== undefined ? st.working_hrs : 0);
+        var breakdownHrsVal = st.breakdown_hours !== undefined ? st.breakdown_hours : (st.breakdown_hrs !== undefined ? st.breakdown_hrs : 0);
+        
+        var machEffVal = "";
+        if (st.machine_efficiency !== undefined) {
+          machEffVal = typeof st.machine_efficiency === "number" ? (st.machine_efficiency.toFixed(2) + "%") : String(st.machine_efficiency);
+        } else {
+          machEffVal = "100%";
+        }
+        if (!machEffVal.endsWith("%")) machEffVal += "%";
+
+        var remarksVal = st.remarks || (st.bd_reason ? ("Breakdown: " + st.bd_reason) : "Shift ended successfully. Checked box counts.");
+
+        sheet.appendRow([
+          dateVal,
+          shiftVal,
+          partVal,
+          stationVal,
+          operatorVal,
+          targetVal,
+          actualVal,
+          speedVal,
+          prodEffVal,
+          workingHrsVal,
+          breakdownHrsVal,
+          machEffVal,
+          remarksVal
+        ]);
+      });
+    }
+  } catch (err) {
+    console.error("Master sheet logging error: " + err.toString());
+  }
+}
+
+/**
  * Creates a temporary spreadsheet, writes shift details, exports to Excel, emails it, and deletes the temp file.
  */
 function sendEmailReport(data) {
@@ -249,9 +344,9 @@ function sendEmailReport(data) {
   sheet.getRange(sheet.getLastRow(), 1).setFontWeight("bold").setFontSize(12);
 
   var tableHeaders = [
-    "Station ID", "Station Name", "Operator", "Target Count", "Actual Output",
-    "Rejections", "Net Output", "Avg Speed (P/M)", "Working Hrs", "Breakdown Hrs",
-    "Prod. Efficiency (%)", "Machine Efficiency (%)", "Breakdown Reason"
+    "Date", "Shift", "Part information", "Station", "Operator",
+    "Target count", "Actual count", "Speed", "Production efficiency",
+    "Working hours", "Breakdown hours", "Machine efficiency", "Remarks"
   ];
   sheet.appendRow(tableHeaders);
 
@@ -264,20 +359,52 @@ function sendEmailReport(data) {
   // Write station records
   if (Array.isArray(data.stations)) {
     data.stations.forEach(function (st) {
+      var dateVal = st.date || dateStr;
+      var shiftVal = st.shift || shiftName;
+      var partVal = st.part_info || st.part_information || (data.shift_info ? ("Size - " + (data.shift_info.cup_size || "13mm") + ", P-" + (data.shift_info.pouch_qty || "30") + ", Box - " + (data.shift_info.outer_box || "12 * 20")) : "T-light candle");
+      var stationVal = st.station || st.name || st.id;
+      var operatorVal = st.operator || "";
+      var targetVal = st.target_count !== undefined ? st.target_count : (st.target !== undefined ? st.target : 0);
+      var actualVal = st.actual_count !== undefined ? st.actual_count : (st.actual !== undefined ? st.actual : 0);
+      var speedVal = st.speed !== undefined ? st.speed : 0;
+      
+      var prodEffVal = "";
+      if (st.prod_efficiency !== undefined) {
+        prodEffVal = typeof st.prod_efficiency === "number" ? (st.prod_efficiency + "%") : String(st.prod_efficiency);
+      } else if (st.production_efficiency !== undefined) {
+        prodEffVal = typeof st.production_efficiency === "number" ? (st.production_efficiency + "%") : String(st.production_efficiency);
+      } else {
+        prodEffVal = "0%";
+      }
+      if (!prodEffVal.endsWith("%")) prodEffVal += "%";
+
+      var workingHrsVal = st.working_hours !== undefined ? st.working_hours : (st.working_hrs !== undefined ? st.working_hrs : 0);
+      var breakdownHrsVal = st.breakdown_hours !== undefined ? st.breakdown_hours : (st.breakdown_hrs !== undefined ? st.breakdown_hrs : 0);
+      
+      var machEffVal = "";
+      if (st.machine_efficiency !== undefined) {
+        machEffVal = typeof st.machine_efficiency === "number" ? (st.machine_efficiency.toFixed(2) + "%") : String(st.machine_efficiency);
+      } else {
+        machEffVal = "100%";
+      }
+      if (!machEffVal.endsWith("%")) machEffVal += "%";
+
+      var remarksVal = st.remarks || (st.bd_reason ? ("Breakdown: " + st.bd_reason) : "Shift ended successfully. Checked box counts.");
+
       sheet.appendRow([
-        st.id,
-        st.name,
-        st.operator,
-        st.target,
-        st.actual,
-        st.rejections,
-        st.net,
-        st.speed,
-        st.working_hrs,
-        st.breakdown_hrs,
-        st.prod_efficiency,
-        st.machine_efficiency,
-        st.bd_reason || ""
+        dateVal,
+        shiftVal,
+        partVal,
+        stationVal,
+        operatorVal,
+        targetVal,
+        actualVal,
+        speedVal,
+        prodEffVal,
+        workingHrsVal,
+        breakdownHrsVal,
+        machEffVal,
+        remarksVal
       ]);
     });
   }

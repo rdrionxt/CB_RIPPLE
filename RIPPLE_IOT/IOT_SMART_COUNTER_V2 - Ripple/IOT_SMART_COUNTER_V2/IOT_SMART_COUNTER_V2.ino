@@ -2639,10 +2639,12 @@ bool write_shift_summary_to_google_sheet(const ShiftSummary &s) {
     return false;
   }
 
-  const char *SCRIPT_ID = "AKfycbzl-NBCkye7XH4nJTsEYzHbgoOF6twPqCflSWW4L9YN7hKINZE4loHPdACSwghOsMH-9Q";
-
   String url = "https://script.google.com/macros/s/";
-  url += SCRIPT_ID;
+  if (GOOGLE_SCRIPT_ID.length() > 0) {
+    url += GOOGLE_SCRIPT_ID;
+  } else {
+    url += "AKfycbzUfkncW_6QuflaDz4QNGJ5kfjRg_yYzsbT0prrW-eDQCKLkzhQ5sRegKzOP41cLWxI";
+  }
   url += "/exec";
 
   url += "?date=" + urlEncode(s.date);
@@ -4162,7 +4164,7 @@ void setup() {
 
 #if STORE == 1
   if (framReadString(DEVICE_ID_ADDR).length() == 0) framWriteString(DEVICE_ID_ADDR, DEVICE_ID_DEFAULT);
-  if (framReadString(GOOGLE_SCRIPT_ID_ADDR).length() == 0) framWriteString(GOOGLE_SCRIPT_ID_ADDR, "AKfycbyzUMwCe_J7fs8P5F4ZLIReJeYMnY2enANEse9VsTQusTOzp6G2erAMw4gILTaSdx1NHg");
+  if (framReadString(GOOGLE_SCRIPT_ID_ADDR).length() == 0) framWriteString(GOOGLE_SCRIPT_ID_ADDR, "AKfycbzUfkncW_6QuflaDz4QNGJ5kfjRg_yYzsbT0prrW-eDQCKLkzhQ5sRegKzOP41cLWxI");
   if (framReadString(DEVICE_NAME_ADD).length() == 0) framWriteString(DEVICE_NAME_ADD, DEVICE_NAME_DEFAULT);
   if (framReadString(unit_name_add).length() == 0) framWriteString(unit_name_add, "RIPPLE");
   if (framReadString(operator_name_add).length() == 0) framWriteString(operator_name_add, "IFRAN");

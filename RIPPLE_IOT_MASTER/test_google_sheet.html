@@ -164,13 +164,13 @@
     <div class="form-grid">
       <div class="form-group">
         <label for="p-date">Date</label>
-        <input type="text" id="p-date" value="">
+        <input type="text" id="p-date" value="2026-07-18">
       </div>
       
       <div class="form-group">
         <label for="p-shift">Shift</label>
         <select id="p-shift">
-          <option value="Shift A">Shift A</option>
+          <option value="Shift A" selected>Shift A</option>
           <option value="Shift B">Shift B</option>
           <option value="Shift C">Shift C</option>
           <option value="General Shift">General Shift</option>
@@ -179,12 +179,12 @@
       
       <div class="form-group">
         <label for="p-part">Part Information</label>
-        <input type="text" id="p-part" value="T-light candle">
+        <input type="text" id="p-part" value="Size - 13mm, P-30, Box - 12 * 20">
       </div>
       
       <div class="form-group">
         <label for="p-station">Station (Device Name)</label>
-        <input type="text" id="p-station" value="Slave 4: Lebelling and box packaging">
+        <input type="text" id="p-station" value="Lebelling and box packaging">
       </div>
       
       <div class="form-group">
@@ -203,28 +203,28 @@
       </div>
       
       <div class="form-group">
-        <label for="p-speed">Speed (pcs/min)</label>
+        <label for="p-speed">Speed</label>
         <input type="number" id="p-speed" value="85.2" step="0.1">
       </div>
       
       <div class="form-group">
         <label for="p-eff">Production Efficiency (%)</label>
-        <input type="number" id="p-eff" value="69">
+        <input type="text" id="p-eff" value="69%">
       </div>
       
       <div class="form-group">
-        <label for="p-working">Working Mins (will show as Hours in sheet)</label>
-        <input type="number" id="p-working" value="450">
+        <label for="p-working">Working Hours</label>
+        <input type="number" id="p-working" value="7.5" step="0.1">
       </div>
       
       <div class="form-group">
-        <label for="p-breakdown">Breakdown Mins (will show as Hours in sheet)</label>
-        <input type="number" id="p-breakdown" value="30">
+        <label for="p-breakdown">Breakdown Hours</label>
+        <input type="number" id="p-breakdown" value="0.5" step="0.1">
       </div>
       
       <div class="form-group">
         <label for="p-mach-eff">Machine Efficiency (%)</label>
-        <input type="number" id="p-mach-eff" value="93.3" step="0.1">
+        <input type="text" id="p-mach-eff" value="93.30%">
       </div>
     </div>
     
@@ -244,12 +244,8 @@
   </div>
 
   <script>
-    // Pre-populate with current local date
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    document.getElementById('p-date').value = `${yyyy}-${mm}-${dd}`;
+    // Set default date
+    document.getElementById('p-date').value = "2026-07-18";
 
     function buildRequestUrl() {
       const baseUrl = document.getElementById('web-app-url').value.trim() || "https://script.google.com/macros/s/TEST_SCRIPT_ID/exec";
@@ -275,7 +271,7 @@
         finalUrl += '&';
       }
 
-      finalUrl += `date=${date}&shift=${shift}&part_name=${part}&device_name=${station}&device_id=SL-004&operator_name=${operator}&target_count=${target}&shift_count=${actual}&actual_speed=${speed}&Prod_efficiency=${eff}&working_mins=${working}&bd_mins=${breakdown}&efficiency=${machEff}&remarks=${remarks}`;
+      finalUrl += `date=${date}&shift=${shift}&part_info=${part}&station=${station}&operator=${operator}&target_count=${target}&actual_count=${actual}&speed=${speed}&production_efficiency=${eff}&working_hours=${working}&breakdown_hours=${breakdown}&machine_efficiency=${machEff}&remarks=${remarks}`;
       
       return finalUrl;
     }

@@ -373,7 +373,36 @@ function loadStateFromLocalStorage() {
         state.shiftReports = Array.isArray(parsed.shiftReports) ? parsed.shiftReports : [];
         
         if (Array.isArray(parsed.orders)) {
-          state.orders = parsed.orders;
+          const defaultShifts = ['Shift A', 'Shift B', 'Shift C', 'General'];
+          const today = new Date().toISOString().split('T')[0];
+          const defaultOrders = [
+            { id: 'ord-shift-a', orderNumber: 'ORD-SHIFT-A', date: today, shift: 'Shift A', targetQty: 80000, active: true },
+            { id: 'ord-shift-b', orderNumber: 'ORD-SHIFT-B', date: today, shift: 'Shift B', targetQty: 80000, active: false },
+            { id: 'ord-shift-c', orderNumber: 'ORD-SHIFT-C', date: today, shift: 'Shift C', targetQty: 80000, active: false },
+            { id: 'ord-general', orderNumber: 'ORD-GENERAL', date: today, shift: 'General', targetQty: 80000, active: false }
+          ];
+
+          let hasActive = false;
+          state.orders = defaultOrders.map(def => {
+            const savedMatch = parsed.orders.find(o => o && o.shift === def.shift);
+            if (savedMatch) {
+              const isActive = !hasActive && !!savedMatch.active;
+              if (isActive) hasActive = true;
+              return {
+                id: def.id,
+                orderNumber: savedMatch.orderNumber || def.orderNumber,
+                date: savedMatch.date || def.date,
+                shift: def.shift,
+                targetQty: (typeof savedMatch.targetQty === 'number' && savedMatch.targetQty > 0) ? savedMatch.targetQty : def.targetQty,
+                active: isActive
+              };
+            }
+            return def;
+          });
+
+          if (!hasActive && state.orders.length > 0) {
+            state.orders[0].active = true;
+          }
         }
         
         if (Array.isArray(parsed.slaves)) {
@@ -428,8 +457,10 @@ const state = {
   shiftStartTime: null,
   shiftReports: [],
   orders: [
-    { id: 'ord-01', orderNumber: 'ORD-2026-001', date: '2026-06-15', shift: 'Shift A', targetQty: 80000, active: false },
-    { id: 'ord-02', orderNumber: 'ORD-2026-002', date: '2026-06-15', shift: 'Shift B', targetQty: 100000, active: false }
+    { id: 'ord-shift-a', orderNumber: 'ORD-SHIFT-A', date: new Date().toISOString().split('T')[0], shift: 'Shift A', targetQty: 80000, active: true },
+    { id: 'ord-shift-b', orderNumber: 'ORD-SHIFT-B', date: new Date().toISOString().split('T')[0], shift: 'Shift B', targetQty: 80000, active: false },
+    { id: 'ord-shift-c', orderNumber: 'ORD-SHIFT-C', date: new Date().toISOString().split('T')[0], shift: 'Shift C', targetQty: 80000, active: false },
+    { id: 'ord-general', orderNumber: 'ORD-GENERAL', date: new Date().toISOString().split('T')[0], shift: 'General', targetQty: 80000, active: false }
   ],
   slaves: [
     {
@@ -1866,7 +1897,7 @@ function sendTelegramSummary(messageText) {
 }
 
 function sendEmailReportViaAppsScript(emailData) {
-  const url = "https://script.google.com/macros/s/AKfycbzUfkncW_6QuflaDz4QNGJ5kfjRg_yYzsbT0prrW-eDQCKLkzhQ5sRegKzOP41cLWxI/exec";
+  const url = "https://script.google.com/macros/s/AKfycbwyiMDRjZ3NhBMHqgWNUSKLsdqtrD2aKOhuoPS8L2CuKaogl5eZ5Q_zHjrA7fVr0IvB/exec";
   
   fetch(url, {
     method: "POST",
@@ -2325,6 +2356,20 @@ function doneShiftEnd() {
   }
   summaryText += `----------------------------------\n`;
 
+  const boxLabels = {
+    "10_12_48": "12 * 48",
+    "24_8_32": "8 * 32",
+    "30_Nill_30": "30",
+    "50_Nill_20": "20",
+    "50_8_16": "8 * 16",
+    "100_4_8": "4 * 8"
+  };
+  const boxLabel = state.shiftConfig ? (boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox) : "12 * 20";
+  const cupSizeStr = state.shiftConfig && state.shiftConfig.cupSize ? (state.shiftConfig.cupSize.startsWith("Size -") ? state.shiftConfig.cupSize : `Size - ${state.shiftConfig.cupSize}`) : "Size - 13mm";
+  const pouchStr = state.shiftConfig && state.shiftConfig.pouchQty ? `P-${state.shiftConfig.pouchQty}` : "P-30";
+  const boxStr = `Box - ${boxLabel}`;
+  const partInfoFormatted = `${cupSizeStr}, ${pouchStr}, ${boxStr}`;
+
   // Compile stations data for the Excel email report
   const stationsData = [];
   state.slaves.forEach(slave => {
@@ -2338,39 +2383,40 @@ function doneShiftEnd() {
       const totalMins = station.workingMins + station.breakdownMins;
       const machEff = totalMins > 0 ? Math.min(100, Math.round((station.workingMins / totalMins) * 100)) : 100;
       
-      const workHrs = (station.workingMins / 60).toFixed(2);
-      const bdHrs = (station.breakdownMins / 60).toFixed(2);
+      const workHrs = parseFloat((station.workingMins / 60).toFixed(2));
+      const bdHrs = parseFloat((station.breakdownMins / 60).toFixed(2));
 
       // Average speed is calculated as actual output divided by working minutes during the shift
       const avgSpeed = station.workingMins > 0 ? parseFloat((actualInt / station.workingMins).toFixed(1)) : 0;
 
       stationsData.push({
+        date: orderDate,
+        shift: shiftName,
+        part_info: partInfoFormatted,
+        station: station.name,
+        operator: station.operator,
+        target_count: targetInt,
+        actual_count: actualInt,
+        speed: avgSpeed,
+        prod_efficiency: prodEff + "%",
+        working_hours: workHrs,
+        breakdown_hours: bdHrs,
+        machine_efficiency: machEff.toFixed(2) + "%",
+        remarks: station.breakdownReason ? `Breakdown: ${station.breakdownReason}` : "Shift ended successfully. Checked box counts.",
+        
+        // Legacy keys for backward compatibility
         id: station.id,
         name: station.name,
-        operator: station.operator,
         target: targetInt,
         actual: actualInt,
         rejections: rejInt,
         net: netInt,
-        speed: avgSpeed,
-        working_hrs: parseFloat(workHrs),
-        breakdown_hrs: parseFloat(bdHrs),
-        prod_efficiency: prodEff,
-        machine_efficiency: machEff,
+        working_hrs: workHrs,
+        breakdown_hrs: bdHrs,
         bd_reason: station.breakdownReason || ""
       });
     });
   });
-
-  const boxLabels = {
-    "10_12_48": "10 (Inner: 12, Outer: 48)",
-    "24_8_32": "24 (Inner: 8, Outer: 32)",
-    "30_Nill_30": "30 (Inner: Nill, Outer: 30)",
-    "50_Nill_20": "50 (Inner: Nill, Outer: 20)",
-    "50_8_16": "50 (Inner: 8, Outer: 16)",
-    "100_4_8": "100 (Inner: 4, Outer: 8)"
-  };
-  const boxLabel = state.shiftConfig ? (boxLabels[state.shiftConfig.outerBox] || state.shiftConfig.outerBox) : "N/A";
 
   const currentReport = {
     date: orderDate,
@@ -2722,17 +2768,13 @@ function renderOrderDirectory() {
     orderSection.style.gap = '12px';
     orderSection.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 class="sidebar-title">Production Orders</h3>
-        <button id="btn-create-order" style="background:transparent; border:1px solid var(--accent-peach); color:var(--accent-peach); border-radius:4px; padding:2px 8px; font-size:0.7rem; font-weight:600; cursor:pointer; text-transform:uppercase; transition:var(--transition-smooth); margin:0;">+ New</button>
+        <h3 class="sidebar-title">Shift Orders</h3>
       </div>
       <ul class="slave-nav-list" id="order-list" style="max-height: 320px; overflow-y: auto; list-style:none;">
         <!-- Rendered dynamically -->
       </ul>
     `;
     sidebar.appendChild(orderSection);
-    
-    // Add event listener to the "+ New" button we just created
-    document.getElementById('btn-create-order').addEventListener('click', openCreateOrderModal);
   }
   
   const listEl = document.getElementById('order-list');
@@ -2749,7 +2791,7 @@ function renderOrderDirectory() {
             <span class="slave-name" style="font-size:0.8rem; font-weight:600;">${order.shift}</span>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:0.85rem; cursor:pointer;" onclick="event.stopPropagation(); openEditOrderModal('${order.id}')" title="Edit Order">✏️</span>
+            <span style="font-size:0.85rem; cursor:pointer;" onclick="event.stopPropagation(); openEditOrderModal('${order.id}')" title="Edit Order Details">✏️</span>
             <span class="slave-id-badge" style="font-size:0.6rem; padding: 2px 6px; border-radius: 4px; background:${order.active ? 'var(--status-running)' : 'rgba(255,255,255,0.05)'}; color:${order.active ? 'var(--bg-dark)' : 'var(--text-muted)'}; font-weight:bold;">${order.active ? 'ACTIVE' : 'PENDING'}</span>
           </div>
         </div>
@@ -2769,35 +2811,25 @@ window.selectOrder = function(orderId) {
   renderActiveSlaveView();
   updateGlobalStats();
   const activeOrder = state.orders.find(o => o.active);
-  const orderRef = activeOrder.orderNumber ? `${activeOrder.orderNumber} (${activeOrder.shift})` : activeOrder.shift;
+  const orderRef = activeOrder ? (activeOrder.orderNumber ? `${activeOrder.orderNumber} (${activeOrder.shift})` : activeOrder.shift) : '';
   addLog('Order Control', `Production order activated: ${orderRef}`, 'info');
 };
-
-function openCreateOrderModal() {
-  editingOrderId = null;
-  document.getElementById('order-modal-title').innerText = "Create Production Order";
-  document.getElementById('create-order-done-btn').innerText = "Done & Create Order";
-  
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('order-number-input').value = "";
-  document.getElementById('order-date-input').value = today;
-  document.getElementById('order-target-input').value = 80000;
-  document.getElementById('order-shift-input').value = "Shift A";
-  
-  document.getElementById('create-order-modal').classList.add('open');
-}
 
 window.openEditOrderModal = function(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   
   editingOrderId = orderId;
-  document.getElementById('order-modal-title').innerText = "Edit Production Order";
+  document.getElementById('order-modal-title').innerText = `Edit ${order.shift} Order`;
   document.getElementById('create-order-done-btn').innerText = "Save Changes";
   
   document.getElementById('order-number-input').value = order.orderNumber || "";
-  document.getElementById('order-date-input').value = order.date;
-  document.getElementById('order-shift-input').value = order.shift;
+  document.getElementById('order-date-input').value = order.date || new Date().toISOString().split('T')[0];
+  const shiftSelect = document.getElementById('order-shift-input');
+  if (shiftSelect) {
+    shiftSelect.value = order.shift;
+    shiftSelect.disabled = true;
+  }
   document.getElementById('order-target-input').value = order.targetQty;
   
   document.getElementById('create-order-modal').classList.add('open');
@@ -2810,8 +2842,7 @@ function closeCreateOrderModal() {
 function doneCreateOrder() {
   const orderNumberVal = document.getElementById('order-number-input').value.trim();
   const dateVal = document.getElementById('order-date-input').value;
-  const shiftVal = document.getElementById('order-shift-input').value;
-  const targetVal = parseInt(document.getElementById('order-target-input').value);
+  const targetVal = parseInt(document.getElementById('order-target-input').value, 10);
   
   if (!orderNumberVal) {
     alert("Please enter a valid Order Number.");
@@ -2829,29 +2860,11 @@ function doneCreateOrder() {
   if (editingOrderId) {
     const order = state.orders.find(o => o.id === editingOrderId);
     if (order) {
-      order.orderNumber = orderNumberVal || ('ORD-' + Date.now().toString().slice(-6));
+      order.orderNumber = orderNumberVal;
       order.date = dateVal;
-      order.shift = shiftVal;
       order.targetQty = targetVal;
-      addLog('Order Control', `Updated order: ${order.orderNumber} - ${shiftVal} (Target: ${targetVal.toLocaleString()})`, 'success');
+      addLog('Order Control', `Updated shift order: ${order.shift} - ${order.orderNumber} (Target: ${targetVal.toLocaleString()})`, 'success');
     }
-  } else {
-    const newOrder = {
-      id: 'ord-' + (state.orders.length + 1) + '-' + Date.now().toString().slice(-4),
-      orderNumber: orderNumberVal || ('ORD-' + Date.now().toString().slice(-6)),
-      date: dateVal,
-      shift: shiftVal,
-      targetQty: targetVal,
-      active: true
-    };
-    
-    // Deactivate others
-    state.orders.forEach(o => o.active = false);
-    
-    // Add to start of list
-    state.orders.unshift(newOrder);
-    
-    addLog('Order Control', `Created and activated new order: ${newOrder.orderNumber} - ${shiftVal} (Target: ${targetVal.toLocaleString()})`, 'success');
   }
   
   closeCreateOrderModal();
