@@ -2,20 +2,19 @@
  * Google Apps Script Reference Implementation
  * 
  * Paste this code into your Google Sheets Apps Script Editor (Extensions > Apps Script).
- * Make sure to deploy it as a Web App:
- * - Click Deploy > New Deployment.
- * - Select type: Web App.
- * - Set "Execute as": Me.
- * - Set "Who has access": Anyone.
- * - Copy the Web App URL and use it in app.js.
+ * Web App URL: https://script.google.com/macros/s/AKfycbxYDNnNGTbcUvQhdntfeS0CRgAZuEbYhmHW5-PGCiyERtScVBEhnXmRLGUZ1ckMM7gz/exec
+ * 
+ * Deployment settings:
+ * - Execute as: Me.
+ * - Who has access: Anyone.
  */
 
 // Global config
 var ENABLE_EMAIL_REPORT = false; // Set to false to STOP automatic shift end email reports
 var RECIPIENT_EMAIL = "riontechnologies2021@gmail.com";
 
-// Paste your Google Sheet ID here (from URL: https://docs.google.com/spreadsheets/d/1RI99AFIXIev6DNcmo4PH0_9uR4c5oImPi_hnLqXwsFw/edit)
-var SPREADSHEET_ID = "1RI99AFIXIev6DNcmo4PH0_9uR4c5oImPi_hnLqXwsFw";
+// Google Sheet ID from URL: https://docs.google.com/spreadsheets/d/1Rl99aFKXlev8DNemo4PH0_9uR4o5oImPi_hnLqXwsFw/edit?gid=61686641#gid=61686641
+var SPREADSHEET_ID = "1Rl99aFKXlev8DNemo4PH0_9uR4o5oImPi_hnLqXwsFw";
 
 function getTargetSpreadsheet() {
   if (typeof SPREADSHEET_ID !== "undefined" && SPREADSHEET_ID && SPREADSHEET_ID.trim() !== "") {
@@ -545,17 +544,139 @@ function sendTelegramReport(messageText) {
 
 /**
  * Custom UI Menu added when opening the Google Sheet.
- * Allows manually sending the Compiled Excel Report right from Google Sheets interface.
+ * Allows manually sending reports or configuring the 10:15 PM daily trigger.
  */
 function onOpen() {
   try {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('Ripple IoT')
+      .addItem('⏰ Activate Daily 10:15 PM Auto-Email Schedule', 'setupDaily1015PmTrigger')
+      .addItem('📧 Test Send Excel to Mail Now', 'menuTestSendDailyExcelReport')
+      .addItem('❌ Cancel 10:15 PM Daily Schedule', 'cancelDaily1015PmTrigger')
+      .addSeparator()
       .addItem('📧 Email Compiled Excel Report (Excl. Summary)', 'menuSendCompiledExcelReport')
       .addToUi();
   } catch (e) {
     // Menu creation ignored if running via Web App trigger context
   }
+}
+
+/**
+ * Sets up a precise daily trigger to run every night at 10:15 PM (22:15).
+ */
+function setupDaily1015PmTrigger() {
+  cancelDaily1015PmTrigger(); // Remove existing triggers first to prevent duplicates
+
+  var now = new Date();
+  var triggerTime = new Date();
+  triggerTime.setHours(22, 15, 0, 0); // 10:15 PM
+
+  // If 10:15 PM has already passed today, schedule for tomorrow at 10:15 PM
+  if (now.getTime() >= triggerTime.getTime()) {
+    triggerTime.setDate(triggerTime.getDate() + 1);
+  }
+
+  ScriptApp.newTrigger('daily1015PmTriggerHandler')
+    .timeBased()
+    .at(triggerTime)
+    .create();
+
+  console.log("Daily 10:15 PM trigger scheduled for: " + triggerTime.toString());
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('Schedule Activated', 'Daily 10:15 PM Excel auto-email schedule activated!\nNext run: ' + triggerTime.toLocaleString(), ui.ButtonSet.OK);
+  } catch (e) {}
+}
+
+/**
+ * Removes all active Daily 10:15 PM triggers.
+ */
+function cancelDaily1015PmTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    var handlerName = triggers[i].getHandlerFunction();
+    if (handlerName === 'daily1015PmTriggerHandler' || handlerName === 'sendDaily1015PmExcelReport') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  console.log("Existing daily triggers cleared.");
+}
+
+/**
+ * Handler executed at 10:15 PM: Sends the email and immediately schedules the next day's 10:15 PM trigger.
+ */
+function daily1015PmTriggerHandler() {
+  try {
+    sendDaily1015PmExcelReport();
+  } catch (err) {
+    console.error("Failed to send daily 10:15 PM report: " + err.toString());
+  } finally {
+    // Re-schedule for tomorrow at 10:15 PM
+    setupDaily1015PmTrigger();
+  }
+}
+
+function menuTestSendDailyExcelReport() {
+  try {
+    sendDaily1015PmExcelReport();
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('Success', 'Daily Excel report sent successfully to: ' + RECIPIENT_EMAIL, ui.ButtonSet.OK);
+  } catch (err) {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('Error', 'Failed to send Excel report: ' + err.toString(), ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Converts the Google Spreadsheet directly into an Excel (.xlsx) file and emails it.
+ */
+function sendDaily1015PmExcelReport(customRecipient) {
+  var targetSs = getTargetSpreadsheet();
+  if (!targetSs) {
+    console.error("No active or target spreadsheet found.");
+    throw new Error("No active or target spreadsheet found.");
+  }
+
+  SpreadsheetApp.flush();
+
+  var timeZone = Session.getScriptTimeZone() || "Asia/Kolkata";
+  var dateStr = Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
+  var timeStr = Utilities.formatDate(new Date(), timeZone, "hh:mm a");
+  var fileName = "Ripple_IoT_Daily_Production_Report_" + dateStr + ".xlsx";
+
+  // Export full Google Spreadsheet as .xlsx (Microsoft Excel)
+  var exportUrl = "https://docs.google.com/spreadsheets/d/" + targetSs.getId() + "/export?format=xlsx";
+  var token = ScriptApp.getOAuthToken();
+
+  var response = UrlFetchApp.fetch(exportUrl, {
+    headers: {
+      'Authorization': 'Bearer ' + token
+    },
+    muteHttpExceptions: true
+  });
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Failed to export Google Sheet to Excel (HTTP " + response.getResponseCode() + ")");
+  }
+
+  var excelBlob = response.getBlob().setName(fileName);
+
+  var recipient = customRecipient || RECIPIENT_EMAIL || "riontechnologies2021@gmail.com";
+  var subject = "📊 Daily Production Excel Report (" + dateStr + ") - 10:15 PM Summary";
+  var body = "Hello Team,\n\n" +
+             "Please find attached the daily Ripple IoT Production Excel report (.xlsx) for " + dateStr + " generated at " + timeStr + ".\n\n" +
+             "Spreadsheet Source: " + targetSs.getUrl() + "\n\n" +
+             "Best Regards,\n" +
+             "Ripple IoT Automated System";
+
+  MailApp.sendEmail({
+    to: recipient,
+    subject: subject,
+    body: body,
+    attachments: [excelBlob]
+  });
+
+  console.log("Daily 10:15 PM Excel report emailed successfully to " + recipient);
 }
 
 function menuSendCompiledExcelReport() {
